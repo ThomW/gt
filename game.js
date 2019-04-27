@@ -47,7 +47,7 @@ function preload () {
    }
 
    game.load.spritesheet('player', 'img/player.png', 21, 24, 7);
-
+   game.load.spritesheet('ping', 'img/ping.png', 15, 15, 3);
 
    // game.load.atlasJSONHash('sprites', 'img/sprites.png', 'img/sprites.json');
 
@@ -79,6 +79,8 @@ var GAME_STATE_PLAYER_IN_HOLE = 4;
 var GAME_STATE_END_GAME = 15;
 var GAME_STATE_GAME_OVER = 16;
 
+var HOLE_FLOOR = 120 * scaleFactor;
+
 var gameState = GAME_STATE_TITLE;
 
 var background;
@@ -93,6 +95,7 @@ var screen = 1;
 
 var holes = [];
 
+var macguffinSpot;
 var macguffinImages = [];
 var macguffinLocations = [];
 
@@ -139,8 +142,8 @@ function gameStart() {
     // Screens 2-5 are the screens with holes
     while (Object.keys(macguffinLocations).length < 3) {
         var screenIdx = rnd(2, 5);
-        var holeIdx = rnd(0, blueprints[screenIdx].length);
-        macguffinLocations['' + screenIdx] = holeIdx; // Hack to force array to be associative
+        var holeIdx = rnd(0, blueprints[screenIdx].length - 1);
+        macguffinLocations[getScreenKey(screenIdx)] = holeIdx; // Hack to force array to be associative
     }
 
     score = 9999;
@@ -178,6 +181,21 @@ function create() {
     animations['neckdown'] = player.animations.add('neckdown', [6, 5, 4, 3, 0], 10, false);
     animations['neckdown'].onComplete.add(onNeckdownComplete, this);
 
+    macguffinSpot = game.add.sprite(0, 0, 'ping');
+    macguffinSpot.scale.setTo(scaleFactor, scaleFactor);
+    macguffinSpot.anchor.setTo(0.5, 0.5);
+    macguffinSpot.visible = false;
+    macguffinSpot.animations.add('blink', [0,1,2,1], 10, true);
+    macguffinSpot.animations.play('blink');
+
+    macguffinSprite = game.add.sprite(0, 0, 'macguffin1');
+    macguffinSprite.scale.setTo(scaleFactor, scaleFactor);
+    macguffinSprite.anchor.setTo(0.5, 0.5);
+    macguffinSprite.x = 110 * scaleFactor;
+    macguffinSprite.y = 140 * scaleFactor;
+    game.physics.enable(macguffinSprite, Phaser.Physics.ARCADE);
+    macguffinSprite.visible = false;
+
     scoreText = game.add.retroFont('font', 15, 7, '0123456789', 10);
     scoreImg = game.add.image(160 * scaleFactor, 175 * scaleFactor, scoreText);
     scoreImg.scale.setTo(scaleFactor, scaleFactor);
@@ -188,11 +206,9 @@ function create() {
     for (var i = 1; i <= 3; i++) {
         var macguffinImg = game.add.sprite(10 * scaleFactor + 20 * i * scaleFactor, 10 * scaleFactor, 'macguffin' + i);
         macguffinImg.scale.setTo(scaleFactor, scaleFactor);
-        // macguffinImg.visible = false;
+        macguffinImg.visible = false;
         macguffinImages.push(macguffinImg);
     }
-
-
 
     gameState = GAME_STATE_TITLE;
     game.input.onDown.addOnce(introStart, this);
@@ -291,15 +307,26 @@ function update () {
         // Look for collisions with rectangles when the player isn't hovering
         if (!player.isHovering) {
 
-            if (isPlayerTouchingHole()) {
+            var holeTouched = playerTouchingHoleIdx();
+            if (holeTouched != null) {
                 
                 // Store the last screen and position for when we get out of the stupid hole
                 lastScreen = screen;
                 lastPosition = [player.x, player.y];
 
                 // Should this screen have a macguffin piece?
-                if (player.macguffinScreens.indexOf(screen)) {
+                if (screenHasMacguffin(screen) 
+                        && macguffinLocations[getScreenKey(screen)] == holeTouched
+                        && numRemainingMacguffins() > 0) {
 
+                    // (The 4- makes sure we're showing the macguffins in the right order)
+                    macguffinSprite.loadTexture('macguffin' + (4 - numRemainingMacguffins()));
+
+                    // Show the macguffin!
+                    macguffinSprite.visible = true;
+
+                } else {
+                    macguffinSprite.visible = false;
                 }
 
                 // Move the player to the center top of the screen so they can fall
@@ -322,12 +349,10 @@ function update () {
             player.animations.play('neckdown');
         }
 
-        // Indicate any macguffins on this screen
-        var screenKey = '' + screen;
-        if (screenKey in macguffinLocations) {
-            console.log('MACGUFFIN FOUND!!!');
+        // Shine a spot on the macguffin this screen has one
+        if (screenHasMacguffin(screen)) {
+            macguffinSpot.visible = true;
         }
-
     }
 
 
@@ -370,8 +395,6 @@ function update () {
             player.y += speed;
         }
 
-        var HOLE_FLOOR = 120 * scaleFactor;
-
         // Player has floated up the screen enough to return to the overworld
         if (player.y < PLAYER_MIN_Y * scaleFactor) {
 
@@ -382,6 +405,8 @@ function update () {
             player.y = lastPosition[1];
 
             background.loadTexture('bg-0' + lastScreen);
+
+            macguffinSprite.visible = false;
 
         } else if (player.y > HOLE_FLOOR) { 
 
@@ -397,6 +422,32 @@ function update () {
             } else {
                 player.animations.stop();
                 player.frame = 0; // Plant the player's feet
+            }
+        }
+
+        // Player is touching the macguffin!
+        if (macguffinSprite.visible && isPlayerTouchingMacguffin()) {
+
+            // TODO: PLAY SOUND
+            
+            // Hide the macguffin sprite
+            macguffinSprite.visible = false;
+
+            // Show the macguffin as being picked up in the top bar
+            macguffinImages[3 - numRemainingMacguffins()].visible = true;
+            
+            // Remove the current screen from the list of locations that have macguffins
+            delete macguffinLocations[getScreenKey(lastScreen)];
+
+            // OHSHI... IT'S GO TIME!
+            if (numRemainingMacguffins() == 0) {
+                
+                // TODO: PLAY SOUND
+
+                // TODO: SHOW CUTSCENE?
+
+                // TODO: CHANGE SPRITE
+
             }
         }
     }
@@ -456,20 +507,62 @@ function changeScreen(from, direction)
             }
         }
     }
+
+    // Show the macguffinSpot
+    if (screenHasMacguffin(screen)) {
+        var screenKey = getScreenKey(screen);
+        var holeIdx = macguffinLocations[screenKey];
+        var rect = blueprints[screen][holeIdx][0];
+        macguffinSpot.x = (rect[0] + rect[2] * 0.5) * scaleFactor;
+        macguffinSpot.y = (rect[1] + rect[3] * 0.5) * scaleFactor;
+    }
+
+}
+
+function getScreenKey(screen) {
+    return 'screen' + screen;
+}
+
+function screenHasMacguffin(screen) {
+    return (getScreenKey(screen) in macguffinLocations);
+}
+
+function numRemainingMacguffins() {
+    return Object.keys(macguffinLocations).length;
 }
 
 // This loops through the active holes and checks to see if the player's collision body is touching them
-function isPlayerTouchingHole() {
+// If this returns null, a hole isn't touched
+// If this returns -1, a non-macguffin hole is touched
+// If this returns a positive number, a macguffin hole is touched
+function playerTouchingHoleIdx() {
 
     var boundsA = player.body;
 
     for (var i = 0; i < holes.length; i++) {
         if (Phaser.Rectangle.intersects(boundsA, holes[i])) {
-            return true;
+
+            // Once we figure out that a collision is happening, we want to return the index of the hole being touched
+            for (var holeIdx = 0; holeIdx < blueprints[screen].length; holeIdx++) {
+                var holeData = blueprints[screen][holeIdx];
+                for (var j = 0; j < holeData.length; j++) {
+                    var b = holeData[j];
+                    var rect = new Phaser.Rectangle(b[0] * scaleFactor, b[1] * scaleFactor, b[2] * scaleFactor, b[3] * scaleFactor);
+                    if (Phaser.Rectangle.intersects(rect, holes[i])) {
+                        return holeIdx;
+                    }
+                }
+            }
+            
+            return -1;
         }
     }
 
-    return false;
+    return null;
+}
+
+function isPlayerTouchingMacguffin() {
+    return macguffinSprite.visible && Phaser.Rectangle.intersects(player.body, macguffinSprite.body);
 }
 
 // This is used to debug things in the game - collision, etc.
@@ -520,6 +613,7 @@ function updateScore(value) {
 function onNeckdownComplete(sprite, animation) {
     gameState = GAME_STATE_PLAYING;
     player.isHovering = false;
+    macguffinSpot.visible = false;
 }
 
 // Returns the rightmost characters in a string
