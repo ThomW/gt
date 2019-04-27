@@ -107,7 +107,7 @@ var animations = [];
 // - The key tells us the screen number
 // - The second level is the list of holes in that screen
 // - The third level is the list of rectangles that make up that hole's hitboxes
-var blueprints = {
+var blueprintsEx = {
     1: [],
     2: [[[72,72,24,6,'x'], [96,64,32,4,'x'], [88,68,32,2,'x'], [80,70,24,4,'x'], [64,74,8,2,'x'],[80,78,32,2,'x'], [87,80,32,2,'x'], [96,82,32,4,'x']], [[88,118,8,10,'x'], [72,120,40,6,'x'], [64,122,56,2,'x']]],
     3: [[[89, 54, 15, 20, 'xy'], [80, 56, 32, 16, 'xy'], [72,58, 48, 12, 'xy'], [64, 60, 63, 8, 'xy'], [56, 62, 80, 4, 'xy']]],
@@ -115,6 +115,60 @@ var blueprints = {
     5: [[[32,48,16,14,'xy'],[32,50,32,10,'xy'],[32,52,40,6,'xy']], [[88,88,16,16,'x'],[80,90,32,12,'x'],[72,92,48,8,'x'],[63,94,65,4,'x']], [[144,48,32,14,'y'], [128,50,64,10,'y'], [120,52,80,6,'y']]],
     6: []
 }
+
+// Extrapolate the blueprints
+var blueprints = {};
+for (var screen = 1; screen <= 6; screen++) {
+
+    blueprints[screen] = [];
+
+    for (var holeIdx = 0; holeIdx < blueprintsEx[screen].length; holeIdx++) {
+    
+        var holeBlueprint = blueprintsEx[screen][holeIdx];
+
+        var newHole = [];
+        var newHoleX = null;
+        var newHoleY = null;
+        var newHoleXY = null;
+
+        for (var j = 0; j < holeBlueprint.length; j++) {
+
+            var newHoleData = holeBlueprint[j];
+            newHole.push(newHoleData);
+
+            if (newHoleData.length >= 5) {
+                
+                // We have to do some funky-looking math because the hit detection doesn't work with rectangles with negative widths/heights
+                var mirrorX = (160 - newHoleData[0]) * 2 - newHoleData[2];
+                var mirrorY = (96 - newHoleData[1]) * 2 - newHoleData[3];
+
+                if (newHoleData[4].indexOf('x') > -1) {
+                    var rect = [mirrorX +  newHoleData[0], newHoleData[1], newHoleData[2], newHoleData[3]];
+                    if (newHoleX == null) { newHoleX = []; }
+                    newHoleX.push(rect);
+                }
+                if (newHoleData[4].indexOf('y') > -1) {
+                    var rect = [newHoleData[0], mirrorY + newHoleData[1], newHoleData[2], newHoleData[3]];
+                    if (newHoleY == null) { newHoleY = []; }
+                    newHoleY.push(rect);
+                }
+                if (newHoleData[4].indexOf('xy') > -1) {
+                    var rect = [mirrorX + newHoleData[0], mirrorY + newHoleData[1], newHoleData[2], newHoleData[3]];
+                    if (newHoleXY == null) { newHoleXY = []; }
+                    newHoleXY.push(rect);
+                }
+            }
+        }
+
+        // Add all the hole data to the blueprints now that all the rectangles are collected and mirrored
+        blueprints[screen].push(newHole);
+        if (newHoleX != null) blueprints[screen].push(newHoleX);
+        if (newHoleY != null) blueprints[screen].push(newHoleY);
+        if (newHoleXY != null) blueprints[screen].push(newHoleXY);
+    }
+}
+
+
 
 // These are used when the player emerges victoriously from a hole
 var lastScreen = 0;
@@ -475,36 +529,13 @@ function changeScreen(from, direction)
         holes.pop();
     }
 
-    // If we got holes, throw them  up
+    // If we got holes, create rectangles for hit detection
     if (blueprints[screen].length) {
-
         for (var i = 0; i < blueprints[screen].length; i++) {
-
             var holeData = blueprints[screen][i];
-
             for (var j = 0; j < holeData.length; j++) {
-
                 var b = holeData[j];
-
                 holes.push(new Phaser.Rectangle(b[0] * scaleFactor, b[1] * scaleFactor, b[2] * scaleFactor, b[3] * scaleFactor));
-
-                // Most of the screens have mirrored holes, so handle mirroring
-                if (b.length >= 5) {
-
-                    // We have to do some funky-looking math because the hit detection doesn't work with rectangles with negative widths/heights
-                    var mirrorX = (160 - b[0]) * 2 - b[2];
-                    var mirrorY = (96 - b[1]) * 2 - b[3];
-
-                    if (b[4].indexOf('x') > -1) {
-                        holes.push(new Phaser.Rectangle((mirrorX +  b[0]) * scaleFactor, b[1] * scaleFactor, b[2] * scaleFactor, b[3] * scaleFactor));
-                    }
-                    if (b[4].indexOf('y') > -1) {
-                        holes.push(new Phaser.Rectangle(b[0] * scaleFactor, (mirrorY + b[1]) * scaleFactor, b[2] * scaleFactor, b[3] * scaleFactor));
-                    }
-                    if (b[4].indexOf('xy') > -1) {
-                        holes.push(new Phaser.Rectangle((mirrorX + b[0]) * scaleFactor, (mirrorY + b[1]) * scaleFactor, b[2] * scaleFactor, b[3] * scaleFactor));
-                    }
-                }
             }
         }
     }
