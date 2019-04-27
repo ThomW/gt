@@ -28,7 +28,7 @@ console.log('scaleFactor:' + scaleFactor + ' width: ' + (gameWidth * scaleFactor
 
 scaleFactor = Math.floor(scaleFactor);
 
-// window.document.getElementById('game').style('margin-left', '-' + (gameWidth * scaleFactor * 0.5) + 'px');
+window.document.getElementById('game').style.marginLeft = '-' + (gameWidth * scaleFactor * 0.5) + 'px';
 
 // DEBUG: Override the scale factor code
 // scaleFactor = 1;
@@ -591,8 +591,6 @@ function render() {
         game.debug.geom(new Phaser.Rectangle(b[0] * scaleFactor, b[1] * scaleFactor, b[2] * scaleFactor, b[3] * scaleFactor), '#0fffff44');
    }
    */
-
-
 }
 
 function hideScore() {
