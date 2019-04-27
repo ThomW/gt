@@ -28,6 +28,7 @@ console.log('scaleFactor:' + scaleFactor + ' width: ' + (gameWidth * scaleFactor
 
 scaleFactor = Math.floor(scaleFactor);
 
+// Centers the window on the screen
 window.document.getElementById('game').style.marginLeft = '-' + (gameWidth * scaleFactor * 0.5) + 'px';
 
 // DEBUG: Override the scale factor code
