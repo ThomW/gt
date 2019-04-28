@@ -42,7 +42,7 @@ function preload () {
    // Needed to combat content caching
    var imgFolder = 'img/';
 
-   var imgNames = ['bg-01', 'bg-02', 'bg-03', 'bg-04', 'bg-05', 'bg-06', 'bg-07', 'title', 'font', 'macguffin1', 'macguffin2', 'macguffin3'];
+   var imgNames = ['bg-01', 'bg-02', 'bg-03', 'bg-04', 'bg-05', 'bg-06', 'bg-07', 'title', 'font', 'macguffin1', 'macguffin2', 'macguffin3', 'bullet-red', 'bullet-blue', 'bullet-green', 'bullet-yellow'];
    for (var i = 0; i < imgNames.length; i++) {
       game.load.image(imgNames[i], imgFolder + imgNames[i] + '.png');
    }
@@ -101,6 +101,8 @@ var macguffinImages = [];
 var macguffinLocations = [];
 
 var animations = [];
+
+var weapon;
 
 // Blueprints tell us where the holes are.
 // There are multiple arrays within each blueprint.
@@ -168,8 +170,6 @@ for (var screen = 1; screen <= 6; screen++) {
     }
 }
 
-
-
 // These are used when the player emerges victoriously from a hole
 var lastScreen = 0;
 var lastPosition = [];
@@ -227,7 +227,7 @@ function create() {
     // Setup some variables I'm glomming onto the player object
     player.isHovering = false;
     player.numCandies = 0;
-    player.macguffinScreens = []; // This will track which screens the player has fallen into holes and found macguffin pieces
+    player.hasWeapon = false;
 
     player.animations.add('walk', [0, 1, 2], 10, true);
     player.animations.add('neckup', [3, 4, 5, 6], 10, false);
@@ -235,6 +235,16 @@ function create() {
     // The neckdown animation has a 
     animations['neckdown'] = player.animations.add('neckdown', [6, 5, 4, 3, 0], 10, false);
     animations['neckdown'].onComplete.add(onNeckdownComplete, this);
+
+    //  Creates 30 bullets, using the 'bullet' graphic
+    weapon = game.add.weapon(30, 'bullet-red');
+    weapon.bullets.setAll('scale.x', scaleFactor);
+    weapon.bullets.setAll('scale.y', scaleFactor);
+    weapon.bulletKillType = Phaser.Weapon.KILL_WORLD_BOUNDS;
+    weapon.bulletAngleOffset = 180; // Because our bullet is drawn facing up, we need to offset its rotation:
+    weapon.bulletSpeed = 400; //  The speed at which the bullet is fired
+    weapon.fireRate = 120; // Delay between bullets in ms
+    weapon.trackSprite(player, 0, 7 * scaleFactor); // Position toward player's head
 
     macguffinSpot = game.add.sprite(0, 0, 'ping');
     macguffinSpot.scale.setTo(scaleFactor, scaleFactor);
@@ -309,13 +319,37 @@ function update () {
             }
         }
 
+        // Fire weapon?
+        if (player.hasWeapon) {
+
+            var FIRE_UP = 1, FIRE_RIGHT = 2, FIRE_DOWN = 4, FIRE_LEFT = 8;
+
+            // This craziness is the laziest way I could think of to make sure that only one fire button is hit at a time
+            var fireDir = 0;
+            if (game.input.keyboard.isDown(Phaser.Keyboard.I)) { fireDir += FIRE_UP; }
+            if (game.input.keyboard.isDown(Phaser.Keyboard.L)) { fireDir += FIRE_RIGHT; }
+            if (game.input.keyboard.isDown(Phaser.Keyboard.K)) { fireDir += FIRE_DOWN; }
+            if (game.input.keyboard.isDown(Phaser.Keyboard.J)) { fireDir += FIRE_LEFT; }
+
+            if (fireDir == FIRE_UP) {
+                weapon.fireAngle = Phaser.ANGLE_UP;
+                weapon.fire();
+            } else if (fireDir == FIRE_RIGHT) {
+                weapon.fireAngle = Phaser.ANGLE_RIGHT;
+                weapon.fire();
+            } else if (fireDir == FIRE_DOWN) {
+                weapon.fireAngle = Phaser.ANGLE_DOWN;
+                weapon.fire();
+            } else if (fireDir == FIRE_LEFT) {
+                weapon.fireAngle = Phaser.ANGLE_LEFT;
+                weapon.fire();
+            }
+        }
+
         // Player has to be stationary to raise his neck
         if (!player.isHovering && startingPos == finalPos && game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR)) {
-            
             gameState = GAME_STATE_NECKUP;
             player.animations.play('neckup');
-
-            // TODO: Reveal the location of the macguffin on this screen?
         }
 
         PLAYER_MIN_X = 42;
@@ -393,8 +427,6 @@ function update () {
                 gameState = GAME_STATE_PLAYER_IN_HOLE;
             }
         }
-
-
     }
     else if (gameState == GAME_STATE_NECKUP) {
 
@@ -503,6 +535,7 @@ function update () {
 
                 // TODO: CHANGE SPRITE
 
+                player.hasWeapon = true;
             }
         }
     }
