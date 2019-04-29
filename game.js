@@ -6,8 +6,8 @@ Apologies to everyone who plays this
 
 */
 
-var gameWidth = 320;
-var gameHeight = 210;
+var gameWidth = 720;
+var gameHeight = 366;
 
 if (gameWidth < gameHeight) {
     scaleFactor = window.innerHeight / gameHeight;
@@ -15,16 +15,11 @@ if (gameWidth < gameHeight) {
     scaleFactor = window.innerWidth / gameWidth;
 }
 
-console.log(window.innerWidth + ' x ' + window.innerHeight);
-console.log('scaleFactor:' + scaleFactor + ' width: ' + (gameWidth * scaleFactor) + ' height: ' + (gameHeight * scaleFactor));
-
 if (gameHeight * scaleFactor > window.innerHeight) {
     scaleFactor = window.innerHeight / gameHeight;
 } else if (gameWidth * scaleFactor > window.innerWidth) {
     scaleFactor = window.innerWidth / gameWidth;
 }
-
-console.log('scaleFactor:' + scaleFactor + ' width: ' + (gameWidth * scaleFactor) + ' height: ' + (gameHeight * scaleFactor));
 
 scaleFactor = Math.floor(scaleFactor);
 
@@ -36,7 +31,6 @@ window.document.getElementById('game').style.marginLeft = '-' + (gameWidth * sca
 
 var game = new Phaser.Game(gameWidth * scaleFactor, gameHeight * scaleFactor, Phaser.CANVAS, 'game', { preload: preload, create: create, update: update, render: render });
 
-
 function preload () {
 
    // Needed to combat content caching
@@ -47,7 +41,8 @@ function preload () {
       game.load.image(imgNames[i], imgFolder + imgNames[i] + '.png');
    }
 
-   game.load.spritesheet('player', 'img/player.png', 21, 24, 7);
+   game.load.spritesheet('player', 'img/player.png', 42, 64, 7);
+   game.load.spritesheet('player-armed', 'img/player-armed.png', 42, 64, 7);
    game.load.spritesheet('ping', 'img/ping.png', 15, 15, 3);
 
    // game.load.atlasJSONHash('sprites', 'img/sprites.png', 'img/sprites.json');
@@ -80,7 +75,7 @@ var GAME_STATE_PLAYER_IN_HOLE = 4;
 var GAME_STATE_END_GAME = 15;
 var GAME_STATE_GAME_OVER = 16;
 
-var HOLE_FLOOR = 120 * scaleFactor;
+var HOLE_FLOOR = 260 * scaleFactor;
 
 var gameState = GAME_STATE_TITLE;
 
@@ -104,71 +99,7 @@ var animations = [];
 
 var weapon;
 
-// Blueprints tell us where the holes are.
-// There are multiple arrays within each blueprint.
-// - The key tells us the screen number
-// - The second level is the list of holes in that screen
-// - The third level is the list of rectangles that make up that hole's hitboxes
-var blueprintsEx = {
-    1: [],
-    2: [[[72,72,24,6,'x'], [96,64,32,4,'x'], [88,68,32,2,'x'], [80,70,24,4,'x'], [64,74,8,2,'x'],[80,78,32,2,'x'], [87,80,32,2,'x'], [96,82,32,4,'x']], [[88,118,8,10,'x'], [72,120,40,6,'x'], [64,122,56,2,'x']]],
-    3: [[[89, 54, 15, 20, 'xy'], [80, 56, 32, 16, 'xy'], [72,58, 48, 12, 'xy'], [64, 60, 63, 8, 'xy'], [56, 62, 80, 4, 'xy']]],
-    4: [[[80, 57, 7, 76, 'x'], [73, 68, 22, 54, 'x'], [65, 85, 38, 23, 'x']], [[152, 64, 16, 14, 'y'], [144, 66, 32, 10, 'y'], [136, 68, 48, 6, 'y']]],
-    5: [[[32,48,16,14,'xy'],[32,50,32,10,'xy'],[32,52,40,6,'xy']], [[88,88,16,16,'x'],[80,90,32,12,'x'],[72,92,48,8,'x'],[63,94,65,4,'x']], [[144,48,32,14,'y'], [128,50,64,10,'y'], [120,52,80,6,'y']]],
-    6: []
-}
-
-// Extrapolate the blueprints
-var blueprints = {};
-for (var screen = 1; screen <= 6; screen++) {
-
-    blueprints[screen] = [];
-
-    for (var holeIdx = 0; holeIdx < blueprintsEx[screen].length; holeIdx++) {
-    
-        var holeBlueprint = blueprintsEx[screen][holeIdx];
-
-        var newHole = [];
-        var newHoleX = null;
-        var newHoleY = null;
-        var newHoleXY = null;
-
-        for (var j = 0; j < holeBlueprint.length; j++) {
-
-            var newHoleData = holeBlueprint[j];
-            newHole.push(newHoleData);
-
-            if (newHoleData.length >= 5) {
-                
-                // We have to do some funky-looking math because the hit detection doesn't work with rectangles with negative widths/heights
-                var mirrorX = (160 - newHoleData[0]) * 2 - newHoleData[2];
-                var mirrorY = (96 - newHoleData[1]) * 2 - newHoleData[3];
-
-                if (newHoleData[4].indexOf('x') > -1) {
-                    var rect = [mirrorX +  newHoleData[0], newHoleData[1], newHoleData[2], newHoleData[3]];
-                    if (newHoleX == null) { newHoleX = []; }
-                    newHoleX.push(rect);
-                }
-                if (newHoleData[4].indexOf('y') > -1) {
-                    var rect = [newHoleData[0], mirrorY + newHoleData[1], newHoleData[2], newHoleData[3]];
-                    if (newHoleY == null) { newHoleY = []; }
-                    newHoleY.push(rect);
-                }
-                if (newHoleData[4].indexOf('xy') > -1) {
-                    var rect = [mirrorX + newHoleData[0], mirrorY + newHoleData[1], newHoleData[2], newHoleData[3]];
-                    if (newHoleXY == null) { newHoleXY = []; }
-                    newHoleXY.push(rect);
-                }
-            }
-        }
-
-        // Add all the hole data to the blueprints now that all the rectangles are collected and mirrored
-        blueprints[screen].push(newHole);
-        if (newHoleX != null) blueprints[screen].push(newHoleX);
-        if (newHoleY != null) blueprints[screen].push(newHoleY);
-        if (newHoleXY != null) blueprints[screen].push(newHoleXY);
-    }
-}
+var blueprints = setupBlueprints();
 
 // These are used when the player emerges victoriously from a hole
 var lastScreen = 0;
@@ -221,13 +152,13 @@ function create() {
     player.scale.setTo(scaleFactor, scaleFactor);
     player.anchor.setTo(0.5, 0);
     game.physics.enable(player, Phaser.Physics.ARCADE);
-    player.body.setSize(16, 5, 2, 18); // Adjust the size of the player's bounding box
+    player.body.setSize(32, 10, 4, 55); // Adjust the size of the player's bounding box
     player.visible = false;
 
     // Setup some variables I'm glomming onto the player object
     player.isHovering = false;
     player.numCandies = 0;
-    player.hasWeapon = false;
+    player.hasWeapon = true;
 
     player.animations.add('walk', [0, 1, 2], 10, true);
     player.animations.add('neckup', [3, 4, 5, 6], 10, false);
@@ -244,7 +175,7 @@ function create() {
     weapon.bulletAngleOffset = 180; // Because our bullet is drawn facing up, we need to offset its rotation:
     weapon.bulletSpeed = 400; //  The speed at which the bullet is fired
     weapon.fireRate = 120; // Delay between bullets in ms
-    weapon.trackSprite(player, 0, 7 * scaleFactor); // Position toward player's head
+    weapon.trackSprite(player, 0, 20 * scaleFactor); // Position toward player's head
 
     macguffinSpot = game.add.sprite(0, 0, 'ping');
     macguffinSpot.scale.setTo(scaleFactor, scaleFactor);
@@ -256,8 +187,8 @@ function create() {
     macguffinSprite = game.add.sprite(0, 0, 'macguffin1');
     macguffinSprite.scale.setTo(scaleFactor, scaleFactor);
     macguffinSprite.anchor.setTo(0.5, 0.5);
-    macguffinSprite.x = 110 * scaleFactor;
-    macguffinSprite.y = 140 * scaleFactor;
+    macguffinSprite.x = 200 * scaleFactor;
+    macguffinSprite.y = 315 * scaleFactor;
     game.physics.enable(macguffinSprite, Phaser.Physics.ARCADE);
     macguffinSprite.visible = false;
 
@@ -352,10 +283,10 @@ function update () {
             player.animations.play('neckup');
         }
 
-        PLAYER_MIN_X = 42;
-        PLAYER_MAX_X = 278;
-        PLAYER_MIN_Y = 23;
-        PLAYER_MAX_Y = 135;
+        PLAYER_MIN_X = 10;
+        PLAYER_MAX_X = 710;
+        PLAYER_MIN_Y = 0;
+        PLAYER_MAX_Y = 366;
 
         // Don't let the player change screens when they're hovering
         if (player.isHovering) {
@@ -402,6 +333,9 @@ function update () {
                 // Store the last screen and position for when we get out of the stupid hole
                 lastScreen = screen;
                 lastPosition = [player.x, player.y];
+
+                // Kill all fired bullets
+                weapon.killAll();
 
                 // Should this screen have a macguffin piece?
                 if (screenHasMacguffin(screen) 
@@ -457,7 +391,7 @@ function update () {
             player.scale.x = scaleFactor; // Flip sprite right
         }
 
-        speed = 0.5 * scaleFactor;
+        speed = 2 * scaleFactor;
 
         if (game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR)) {
 
@@ -534,6 +468,7 @@ function update () {
                 // TODO: SHOW CUTSCENE?
 
                 // TODO: CHANGE SPRITE
+                player.loadTexture('player-armed');
 
                 player.hasWeapon = true;
             }
@@ -582,6 +517,8 @@ function changeScreen(from, direction)
         macguffinSpot.y = (rect[1] + rect[3] * 0.5) * scaleFactor;
     }
 
+    // Kill all the bullets flying around the current screen
+    weapon.killAll();
 }
 
 function getScreenKey(screen) {
@@ -687,4 +624,76 @@ function right(str, chr) {
 // Returns an integer random number within our min/max range
 function rnd(min, max) {
     return Math.round(Math.random() * (max - min) + min);
+}
+
+// BlueprintsEx tell us where the holes are.
+// There are multiple arrays within each blueprint.
+// - The key tells us the screen number
+// - The second level is the list of holes in that screen
+// - The third level is the list of rectangles that make up that hole's hitboxes
+// - The fourth level(!) is [x, y, width, height, mirroring]
+// Blueprints is basically the same, but with the mirroring all worked
+function setupBlueprints() {
+
+    var blueprintsEx = {
+        1: [],
+        2: [[[90,258,158,7,'x'], [112,253,113,18,'x'], [158,247,21,29,'x']], [[135,112,45,29,'x'], [180,96,90,11,'x'], [157,107,91,5,'x'],[90,124,90,6,'x'],[135,135,90,6,'x'],[157,140,91,7,'x'],[180,146,91,12,'x']]],
+        3: [[[157,67,45,57,'xy'], [135,73,90,45,'xy'], [113,78,135,35,'xy'],[90,84,180,23,'xy'],[68,90,225,11,'xy']]],
+        4: [[[90,152,113,67,'x'],[113,107,67,158,'x'],[135,79,22,214,'x']], [[337,95,45,40,'y'],[314,101,90,28,'y'],[292,107,136,17,'y']]],
+        5: [[[0,50,45,41,'xy'],[0,56,91,28,'xy'],[0,62,113,17,'xy']],[[158,163,44,45,'x'],[135,169,90,34,'x'],[113,174,135,23,'x'],[90,180,180,11,'x']],[[314,50,90,40,'y'],[270,56,180,28,'y'],[248,62,225,17,'y']]],
+        6: []
+    }
+
+    // Extrapolate the blueprints
+    var blueprints = {};
+    for (var screen = 1; screen <= 6; screen++) {
+
+        blueprints[screen] = [];
+
+        for (var holeIdx = 0; holeIdx < blueprintsEx[screen].length; holeIdx++) {
+        
+            var holeBlueprint = blueprintsEx[screen][holeIdx];
+
+            var newHole = [];
+            var newHoleX = null;
+            var newHoleY = null;
+            var newHoleXY = null;
+
+            for (var j = 0; j < holeBlueprint.length; j++) {
+
+                var newHoleData = holeBlueprint[j];
+                newHole.push(newHoleData);
+
+                if (newHoleData.length >= 5) {
+                    
+                    // We have to do some funky-looking math because the hit detection doesn't work with rectangles with negative widths/heights
+                    var mirrorX = ((gameWidth * 0.5) - newHoleData[0]) * 2 - newHoleData[2];
+                    var mirrorY = ((gameHeight * 0.5)  - newHoleData[1]) * 2 - newHoleData[3];
+
+                    if (newHoleData[4].indexOf('x') > -1) {
+                        var rect = [mirrorX +  newHoleData[0], newHoleData[1], newHoleData[2], newHoleData[3]];
+                        if (newHoleX == null) { newHoleX = []; }
+                        newHoleX.push(rect);
+                    }
+                    if (newHoleData[4].indexOf('y') > -1) {
+                        var rect = [newHoleData[0], mirrorY + newHoleData[1], newHoleData[2], newHoleData[3]];
+                        if (newHoleY == null) { newHoleY = []; }
+                        newHoleY.push(rect);
+                    }
+                    if (newHoleData[4].indexOf('xy') > -1) {
+                        var rect = [mirrorX + newHoleData[0], mirrorY + newHoleData[1], newHoleData[2], newHoleData[3]];
+                        if (newHoleXY == null) { newHoleXY = []; }
+                        newHoleXY.push(rect);
+                    }
+                }
+            }
+
+            // Add all the hole data to the blueprints now that all the rectangles are collected and mirrored
+            blueprints[screen].push(newHole);
+            if (newHoleX != null) blueprints[screen].push(newHoleX);
+            if (newHoleY != null) blueprints[screen].push(newHoleY);
+            if (newHoleXY != null) blueprints[screen].push(newHoleXY);
+        }
+    }
+    return blueprints;
 }
