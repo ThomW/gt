@@ -47,6 +47,7 @@ function preload () {
    game.load.spritesheet('player-armed', 'img/player-armed.png', 42, 64, 7);
    game.load.spritesheet('ping', 'img/ping.png', 15, 15, 3);
    game.load.spritesheet('bullet', 'img/bullet.png', 17, 15, 4);
+   game.load.spritesheet('thefeds', 'img/thefeds.png', 40, 60, 4);
 
    // game.load.atlasJSONHash('sprites', 'img/sprites.png', 'img/sprites.json');
 
@@ -107,6 +108,8 @@ var blueprints = setupBlueprints();
 // These are used when the player emerges victoriously from a hole
 var lastScreen = 0;
 var lastPosition = [];
+
+var nextEnemyTime = null;
 
 function introStart() {
 
@@ -205,7 +208,6 @@ function create() {
     thefeds = game.add.group();
     thefeds.enableBody = true;
     thefeds.physicsBodyType = Phaser.Physics.ARCADE;
-    
 
     scoreText = game.add.retroFont('font', 15, 7, '0123456789', 10);
     scoreImg = game.add.image(160 * scaleFactor, 175 * scaleFactor, scoreText);
@@ -229,6 +231,7 @@ function create() {
 function update () {
 
     var WALKING_SPEED = 3 * scaleFactor;
+    var ENEMY_SPEED = 3.5 * scaleFactor;
 
     if (gameState == GAME_STATE_PLAYING) {
 
@@ -380,6 +383,29 @@ function update () {
                 gameState = GAME_STATE_PLAYER_IN_HOLE;
             }
         }
+
+        // Handle enemy updates
+        thefeds.nextSpawn -= game.time.physicsElapsed;
+        if (thefeds.nextSpawn <= 0) {
+            createEnemy();
+            resetEnemySpawnTimer();
+        }
+
+        thefeds.forEach(function(item) {
+
+            if (player.x < item.x) {
+                item.x -= ENEMY_SPEED;
+                item.scale.x = -1 * scaleFactor; // Flip sprite left
+            } else if (player.x > item.x) {
+                item.x += ENEMY_SPEED;
+                item.scale.x = 1 * scaleFactor; // Unflip sprite
+            }
+            if (player.y < item.y) {
+                item.y -= ENEMY_SPEED;
+            } else if (player.y > item.y) {
+                item.y += ENEMY_SPEED;
+            }
+        }, this);
     }
     else if (gameState == GAME_STATE_NECKUP) {
 
@@ -536,6 +562,11 @@ function changeScreen(from, direction)
 
     // Kill all the bullets flying around the current screen
     weapon.killAll();
+
+    // Remove all enemies from the screen to respawn later
+    thefeds.removeAll();
+
+    resetEnemySpawnTimer();
 }
 
 function getScreenKey(screen) {
@@ -591,6 +622,11 @@ function render() {
 
     // weapon.debug(100, 100, true);
 
+    /*
+    thefeds.forEach(function(item) {
+        game.debug.body(item);
+    });
+    */
 
     // Look at player's collision
     // game.debug.body(player);
@@ -644,6 +680,34 @@ function right(str, chr) {
 // Returns an integer random number within our min/max range
 function rnd(min, max) {
     return Math.round(Math.random() * (max - min) + min);
+}
+
+function createEnemy() {
+
+    // TODO: Randomly create scientists
+
+    // Randomly create a new enemy along the edge of the screen
+    var enemy = thefeds.create(game.world.width * rnd(0,1), game.world.height * rnd(0,1), 'thefeds');
+
+
+    enemy.anchor.setTo(0.5, 1);
+    
+    enemy.body.setSize(32, 10, 4, 55); // Adjust the size of the player's bounding box
+
+
+}
+
+function resetEnemySpawnTimer() {
+
+    // Using physics timer, which is in fractional seconds
+
+    // Reset the enemy timer
+    if (player.hasWeapon) {
+        thefeds.nextSpawn = 0.5;
+    } else {
+        // The enemy spawn rate corresponds to the number of macguffins remaining before the character is armed
+        thefeds.nextSpawn = numRemainingMacguffins();
+    }
 }
 
 // BlueprintsEx tell us where the holes are.
