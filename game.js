@@ -24,7 +24,9 @@ if (gameHeight * scaleFactor > window.innerHeight) {
 scaleFactor = Math.floor(scaleFactor);
 
 // Centers the window on the screen
-window.document.getElementById('game').style.marginLeft = '-' + (gameWidth * scaleFactor * 0.5) + 'px';
+var $game = window.document.getElementById('game');
+$game.style.marginLeft = '-' + (gameWidth * scaleFactor * 0.5) + 'px';
+$game.style.width = gameWidth * scaleFactor + 'px';
 
 // DEBUG: Override the scale factor code
 // scaleFactor = 1;
