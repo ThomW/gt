@@ -36,7 +36,7 @@ function preload () {
    // Needed to combat content caching
    var imgFolder = 'img/';
 
-   var imgNames = ['bg-01', 'bg-02', 'bg-03', 'bg-04', 'bg-05', 'bg-06', 'bg-07', 'title', 'font', 'macguffin1', 'macguffin2', 'macguffin3', 'bullet-red', 'bullet-blue', 'bullet-green', 'bullet-yellow'];
+   var imgNames = ['bg-01', 'bg-02', 'bg-03', 'bg-04', 'bg-05', 'bg-06', 'bg-07', 'title', 'font', 'macguffin1', 'macguffin2', 'macguffin3'];
    for (var i = 0; i < imgNames.length; i++) {
       game.load.image(imgNames[i], imgFolder + imgNames[i] + '.png');
    }
@@ -44,6 +44,7 @@ function preload () {
    game.load.spritesheet('player', 'img/player.png', 42, 64, 7);
    game.load.spritesheet('player-armed', 'img/player-armed.png', 42, 64, 7);
    game.load.spritesheet('ping', 'img/ping.png', 15, 15, 3);
+   game.load.spritesheet('bullet', 'img/bullet.png', 17, 15, 4);
 
    // game.load.atlasJSONHash('sprites', 'img/sprites.png', 'img/sprites.json');
 
@@ -168,14 +169,21 @@ function create() {
     animations['neckdown'].onComplete.add(onNeckdownComplete, this);
 
     //  Creates 30 bullets, using the 'bullet' graphic
-    weapon = game.add.weapon(30, 'bullet-red');
+    weapon = game.add.weapon(30, 'bullet');
     weapon.bullets.setAll('scale.x', scaleFactor);
     weapon.bullets.setAll('scale.y', scaleFactor);
     weapon.bulletKillType = Phaser.Weapon.KILL_WORLD_BOUNDS;
-    weapon.bulletAngleOffset = 180; // Because our bullet is drawn facing up, we need to offset its rotation:
-    weapon.bulletSpeed = 400; //  The speed at which the bullet is fired
+    weapon.bulletSpeed = 600; //  The speed at which the bullet is fired
     weapon.fireRate = 120; // Delay between bullets in ms
     weapon.trackSprite(player, 0, -40 * scaleFactor); // Position toward player's head
+    weapon.setBulletBodyOffset(4 * scaleFactor, 4 * scaleFactor, 0, 18 * scaleFactor);
+    weapon.setBulletFrames(0, 3, false);
+    weapon.bulletInheritSpriteSpeed = false;
+    weapon.addBulletAnimation('bulletUp', [2], 0, false);
+    weapon.addBulletAnimation('bulletRight', [1], 0, false);
+    weapon.addBulletAnimation('bulletDown', [0], 0, false);
+    weapon.addBulletAnimation('bulletLeft', [3], 0, false);
+
 
     macguffinSpot = game.add.sprite(0, 0, 'ping');
     macguffinSpot.scale.setTo(scaleFactor, scaleFactor);
@@ -191,6 +199,11 @@ function create() {
     macguffinSprite.y = 315 * scaleFactor;
     game.physics.enable(macguffinSprite, Phaser.Physics.ARCADE);
     macguffinSprite.visible = false;
+
+    thefeds = game.add.group();
+    thefeds.enableBody = true;
+    thefeds.physicsBodyType = Phaser.Physics.ARCADE;
+    
 
     scoreText = game.add.retroFont('font', 15, 7, '0123456789', 10);
     scoreImg = game.add.image(160 * scaleFactor, 175 * scaleFactor, scoreText);
@@ -264,15 +277,19 @@ function update () {
 
             if (fireDir == FIRE_UP) {
                 weapon.fireAngle = Phaser.ANGLE_UP;
+                weapon.bulletAnimation = 'bulletUp';
                 weapon.fire();
             } else if (fireDir == FIRE_RIGHT) {
                 weapon.fireAngle = Phaser.ANGLE_RIGHT;
+                weapon.bulletAnimation = 'bulletRight';
                 weapon.fire();
             } else if (fireDir == FIRE_DOWN) {
                 weapon.fireAngle = Phaser.ANGLE_DOWN;
+                weapon.bulletAnimation = 'bulletDown';
                 weapon.fire();
             } else if (fireDir == FIRE_LEFT) {
                 weapon.fireAngle = Phaser.ANGLE_LEFT;
+                weapon.bulletAnimation = 'bulletLeft';
                 weapon.fire();
             }
         }
@@ -569,6 +586,9 @@ function isPlayerTouchingMacguffin() {
 function render() {
 
     // game.debug.bodyInfo(player, 32, 32);
+
+    // weapon.debug(100, 100, true);
+
 
     // Look at player's collision
     // game.debug.body(player);
