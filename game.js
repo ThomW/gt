@@ -7,7 +7,7 @@ Apologies to everyone who plays this
 */
 
 var gameWidth = 720;
-var gameHeight = 366;
+var gameHeight = 372;
 
 if (gameWidth < gameHeight) {
     scaleFactor = window.innerHeight / gameHeight;
@@ -75,7 +75,7 @@ var GAME_STATE_PLAYER_IN_HOLE = 4;
 var GAME_STATE_END_GAME = 15;
 var GAME_STATE_GAME_OVER = 16;
 
-var HOLE_FLOOR = 260 * scaleFactor;
+var HOLE_FLOOR = 322 * scaleFactor;
 
 var gameState = GAME_STATE_TITLE;
 
@@ -150,7 +150,7 @@ function create() {
 
     player = game.add.sprite(game.world.centerX, 0, 'player');
     player.scale.setTo(scaleFactor, scaleFactor);
-    player.anchor.setTo(0.5, 0);
+    player.anchor.setTo(0.5, 1);
     game.physics.enable(player, Phaser.Physics.ARCADE);
     player.body.setSize(32, 10, 4, 55); // Adjust the size of the player's bounding box
     player.visible = false;
@@ -175,7 +175,7 @@ function create() {
     weapon.bulletAngleOffset = 180; // Because our bullet is drawn facing up, we need to offset its rotation:
     weapon.bulletSpeed = 400; //  The speed at which the bullet is fired
     weapon.fireRate = 120; // Delay between bullets in ms
-    weapon.trackSprite(player, 0, 20 * scaleFactor); // Position toward player's head
+    weapon.trackSprite(player, 0, -40 * scaleFactor); // Position toward player's head
 
     macguffinSpot = game.add.sprite(0, 0, 'ping');
     macguffinSpot.scale.setTo(scaleFactor, scaleFactor);
@@ -213,26 +213,26 @@ function create() {
 
 function update () {
 
-    if (gameState == GAME_STATE_PLAYING) {
+    var WALKING_SPEED = 3 * scaleFactor;
 
-        speed = 2 * scaleFactor;
+    if (gameState == GAME_STATE_PLAYING) {
 
         // This sucks, but it does fix the problem we'd have if the player had both A and D held (for instance)
         var startingPos = player.x + ',' + player.y;
 
         if (game.input.keyboard.isDown(Phaser.Keyboard.A)) {
-            player.x -= speed;
+            player.x -= WALKING_SPEED;
             player.scale.x = -1 * scaleFactor; // Flip sprite left
         } 
         if (game.input.keyboard.isDown(Phaser.Keyboard.D)) {
-            player.x += speed;
+            player.x += WALKING_SPEED;
             player.scale.x = scaleFactor; // Flip sprite right
         }
         if (game.input.keyboard.isDown(Phaser.Keyboard.W)) {
-            player.y -= speed;
+            player.y -= WALKING_SPEED;
         }
         if (game.input.keyboard.isDown(Phaser.Keyboard.S)) {
-            player.y += speed;
+            player.y += WALKING_SPEED;
         }
 
         if (player.isHovering && !game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR)) {
@@ -285,7 +285,7 @@ function update () {
 
         PLAYER_MIN_X = 10;
         PLAYER_MAX_X = 710;
-        PLAYER_MIN_Y = 0;
+        PLAYER_MIN_Y = 30;
         PLAYER_MAX_Y = 366;
 
         // Don't let the player change screens when they're hovering
@@ -383,15 +383,13 @@ function update () {
         var startingPos = player.x;
 
         if (game.input.keyboard.isDown(Phaser.Keyboard.A)) {
-            player.x -= speed;
+            player.x -= WALKING_SPEED;
             player.scale.x = -1 * scaleFactor; // Flip sprite left
         } 
         if (game.input.keyboard.isDown(Phaser.Keyboard.D)) {
-            player.x += speed;
+            player.x += WALKING_SPEED;
             player.scale.x = scaleFactor; // Flip sprite right
         }
-
-        speed = 2 * scaleFactor;
 
         if (game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR)) {
 
@@ -399,7 +397,7 @@ function update () {
                 player.animations.play('neckup');
             }
 
-            player.y -= speed;
+            player.y -= WALKING_SPEED;
 
             player.isHovering = true;
             
@@ -413,7 +411,7 @@ function update () {
 
             player.isHovering = false;
 
-            player.y += speed;
+            player.y += WALKING_SPEED;
         }
 
         // Player has floated up the screen enough to return to the overworld
@@ -481,7 +479,7 @@ function changeScreen(from, direction)
 {
     // This emulates the completely screwy map ET had ... so weird.
     map = {
-        1: [4, 5, 2, 3],
+        1: [4, 5, 2, 3], // Screen: [Destination Up, Right, Down, Left]
         2: [1, 5, 6, 3],
         3: [1, 6, 4, 2],
         4: [1, 3, 6, 5],
