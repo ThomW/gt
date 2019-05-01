@@ -1,6 +1,6 @@
 /*
 
-G.T.E.T. by ThomW
+G.T. by ThomW
 
 Apologies to everyone who plays this
 
@@ -38,12 +38,12 @@ function preload () {
    // Needed to combat content caching
    var imgFolder = 'img/';
 
-   var imgNames = ['title', 'font', 'macguffin1', 'macguffin2', 'macguffin3'];
+   var imgNames = ['title', 'font', 'macguffin1', 'macguffin2', 'macguffin3', 'title-title', 'title-finger'];
    for (var i = 0; i < imgNames.length; i++) {
       game.load.image(imgNames[i], imgFolder + imgNames[i] + '.png');
    }
 
-   var imgNames = ['bg-01', 'bg-02', 'bg-03', 'bg-04', 'bg-05', 'bg-06', 'bg-07'];
+   var imgNames = ['bg-01', 'bg-02', 'bg-03', 'bg-04', 'bg-05', 'bg-06', 'bg-07', 'title-bg'];
    for (var i = 0; i < imgNames.length; i++) {
       game.load.image(imgNames[i], imgFolder + imgNames[i] + '.jpg');
    }
@@ -89,6 +89,7 @@ var HOLE_FLOOR = 322 * scaleFactor;
 var gameState = GAME_STATE_TITLE;
 
 var background;
+var titleTitle, titleFinger;
 var player;
 
 var score = 0;
@@ -117,6 +118,9 @@ var lastPosition = [];
 var nextEnemyTime = null;
 
 function introStart() {
+
+    titleTitle.visible = false;
+    titleFinger.visible = false;
 
     gameState = GAME_STATE_INTRO;
 
@@ -156,8 +160,27 @@ function create() {
     //  We check bounds collisions against all walls other than the bottom one
     game.physics.arcade.checkCollision.down = false;
 
-    background = game.add.sprite(0, 0, 'title');
+    background = game.add.sprite(0, 0, 'title-bg');
     background.scale.setTo(scaleFactor, scaleFactor);
+
+    titleFinger = game.add.sprite(0, 0, 'title-finger');
+    titleFinger.scale.setTo(scaleFactor, scaleFactor);
+    titleFinger.anchor.setTo(0.5, 1);
+    titleFinger.x = game.width * 0.5;
+    titleFinger.y = game.height + titleFinger.height + 100;
+    
+    titleTitle = game.add.sprite(0, 0, 'title-title');
+    titleTitle.scale.setTo(scaleFactor, scaleFactor);
+    titleTitle.alpha = 0;
+    titleTitle.anchor.setTo(0.5, 1);
+    titleTitle.x = game.width * 0.5;
+    titleTitle.y = game.height - 5 * scaleFactor;
+
+    tweenFinger = game.add.tween(titleFinger).to( { y: game.height }, 6000, "Quart.easeOut");
+    tweenTitle = game.add.tween(titleTitle).to( { alpha: 1 }, 1000);
+
+    tweenFinger.chain(tweenTitle);
+    tweenFinger.start();
 
     player = game.add.sprite(game.world.centerX, 0, 'player');
     player.scale.setTo(scaleFactor, scaleFactor);
@@ -235,7 +258,7 @@ function create() {
 
 var WALKING_SPEED = 3 * scaleFactor;
 var ENEMY_SPEED = 125 * scaleFactor;
-s
+
 function update () {
 
     if (gameState == GAME_STATE_PLAYING) {
