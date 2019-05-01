@@ -38,9 +38,14 @@ function preload () {
    // Needed to combat content caching
    var imgFolder = 'img/';
 
-   var imgNames = ['bg-01', 'bg-02', 'bg-03', 'bg-04', 'bg-05', 'bg-06', 'bg-07', 'title', 'font', 'macguffin1', 'macguffin2', 'macguffin3'];
+   var imgNames = ['title', 'font', 'macguffin1', 'macguffin2', 'macguffin3'];
    for (var i = 0; i < imgNames.length; i++) {
       game.load.image(imgNames[i], imgFolder + imgNames[i] + '.png');
+   }
+
+   var imgNames = ['bg-01', 'bg-02', 'bg-03', 'bg-04', 'bg-05', 'bg-06', 'bg-07'];
+   for (var i = 0; i < imgNames.length; i++) {
+      game.load.image(imgNames[i], imgFolder + imgNames[i] + '.jpg');
    }
 
    game.load.spritesheet('player', 'img/player.png', 42, 64, 7);
