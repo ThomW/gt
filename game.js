@@ -181,7 +181,7 @@ function create() {
     weapon.bulletSpeed = 600; //  The speed at which the bullet is fired
     weapon.fireRate = 120; // Delay between bullets in ms
     weapon.trackSprite(player, 0, -40 * scaleFactor); // Position toward player's head
-    weapon.setBulletBodyOffset(4 * scaleFactor, 4 * scaleFactor, 0, 18 * scaleFactor);
+    weapon.setBulletBodyOffset(4 * scaleFactor, 4 * scaleFactor, 0, 44);
     weapon.setBulletFrames(0, 3, false);
     weapon.bulletInheritSpriteSpeed = false;
     weapon.addBulletAnimation('bulletUp', [2], 0, false);
@@ -228,10 +228,10 @@ function create() {
 }
 
 
+var WALKING_SPEED = 3 * scaleFactor;
+var ENEMY_SPEED = 2 * scaleFactor;
+s
 function update () {
-
-    var WALKING_SPEED = 3 * scaleFactor;
-    var ENEMY_SPEED = 3.5 * scaleFactor;
 
     if (gameState == GAME_STATE_PLAYING) {
 
@@ -359,6 +359,9 @@ function update () {
                 // Kill all fired bullets
                 weapon.killAll();
 
+                // Remove all enemies from the screen to respawn later
+                thefeds.removeAll();
+
                 // Should this screen have a macguffin piece?
                 if (screenHasMacguffin(screen) 
                         && macguffinLocations[getScreenKey(screen)] == holeTouched
@@ -384,28 +387,8 @@ function update () {
             }
         }
 
-        // Handle enemy updates
-        thefeds.nextSpawn -= game.time.physicsElapsed;
-        if (thefeds.nextSpawn <= 0) {
-            createEnemy();
-            resetEnemySpawnTimer();
-        }
+        updateEnemies();
 
-        thefeds.forEach(function(item) {
-
-            if (player.x < item.x) {
-                item.x -= ENEMY_SPEED;
-                item.scale.x = -1 * scaleFactor; // Flip sprite left
-            } else if (player.x > item.x) {
-                item.x += ENEMY_SPEED;
-                item.scale.x = 1 * scaleFactor; // Unflip sprite
-            }
-            if (player.y < item.y) {
-                item.y -= ENEMY_SPEED;
-            } else if (player.y > item.y) {
-                item.y += ENEMY_SPEED;
-            }
-        }, this);
     }
     else if (gameState == GAME_STATE_NECKUP) {
 
@@ -419,8 +402,9 @@ function update () {
         if (screenHasMacguffin(screen)) {
             macguffinSpot.visible = true;
         }
-    }
 
+        updateEnemies();
+    }
 
     else if (gameState == GAME_STATE_PLAYER_IN_HOLE) {
 
@@ -518,6 +502,81 @@ function update () {
         }
     }
 }
+
+// Enemy timing uses physics timer, which is in fractional seconds
+function updateEnemies() {
+
+    game.physics.arcade.overlap(weapon.bullets, thefeds, bulletEnemyCollisionHandler, null, this);
+
+    // Handle enemy updates
+    thefeds.nextSpawn -= game.time.physicsElapsed;
+    if (thefeds.nextSpawn <= 0) {
+        createEnemy();
+        resetEnemySpawnTimer();
+    }
+
+    // The enemies have no AI - they just hone in on the player
+    thefeds.forEach(function(item) {
+
+        if (player.x < item.x) {
+            item.x -= ENEMY_SPEED;
+            item.scale.x = -1 * scaleFactor; // Flip sprite left
+        } else if (player.x > item.x) {
+            item.x += ENEMY_SPEED;
+            item.scale.x = 1 * scaleFactor; // Unflip sprite
+        }
+        if (player.y < item.y) {
+            item.y -= ENEMY_SPEED;
+        } else if (player.y > item.y) {
+            item.y += ENEMY_SPEED;
+        }
+    }, this);
+
+    // Check for collisions between enemies and bullets
+
+}
+
+function createEnemy() {
+
+    // TODO: Randomly create scientists
+
+    // Randomly create a new enemy along the edge of the screen
+    if (rnd(0,1)) {
+        x = rnd(0,1);
+        y = (rnd(0,100) * 0.01)
+    } else {
+        x = (rnd(0,100) * 0.01);
+        y = rnd(0,1);
+    }
+
+    var enemy = thefeds.create(game.world.width * x, game.world.height * y, 'thefeds');
+    enemy.anchor.setTo(0.5, 1);
+    enemy.scale.x = scaleFactor;
+    enemy.scale.y = scaleFactor;
+
+    // Adjust the size of the player's bounding box
+    enemy.body.setSize(32, 10, 4, 55);
+}
+
+function resetEnemySpawnTimer() {
+
+    // Reset the enemy timer
+    if (player.hasWeapon) {
+        thefeds.nextSpawn = 1;
+    } else {
+        // The enemy spawn rate corresponds to the number of macguffins remaining before the character is armed
+        thefeds.nextSpawn = numRemainingMacguffins() + 2;
+    }
+}
+
+function bulletEnemyCollisionHandler(bullet, enemy) {
+
+    // TODO: Sound
+    // TODO: Death animation
+
+    enemy.kill();
+}
+
 
 // Direction should be 0=up, 1=right ... clockwise
 function changeScreen(from, direction)
@@ -680,34 +739,6 @@ function right(str, chr) {
 // Returns an integer random number within our min/max range
 function rnd(min, max) {
     return Math.round(Math.random() * (max - min) + min);
-}
-
-function createEnemy() {
-
-    // TODO: Randomly create scientists
-
-    // Randomly create a new enemy along the edge of the screen
-    var enemy = thefeds.create(game.world.width * rnd(0,1), game.world.height * rnd(0,1), 'thefeds');
-
-
-    enemy.anchor.setTo(0.5, 1);
-    
-    enemy.body.setSize(32, 10, 4, 55); // Adjust the size of the player's bounding box
-
-
-}
-
-function resetEnemySpawnTimer() {
-
-    // Using physics timer, which is in fractional seconds
-
-    // Reset the enemy timer
-    if (player.hasWeapon) {
-        thefeds.nextSpawn = 0.5;
-    } else {
-        // The enemy spawn rate corresponds to the number of macguffins remaining before the character is armed
-        thefeds.nextSpawn = numRemainingMacguffins();
-    }
 }
 
 // BlueprintsEx tell us where the holes are.
