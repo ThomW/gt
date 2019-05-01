@@ -234,7 +234,7 @@ function create() {
 
 
 var WALKING_SPEED = 3 * scaleFactor;
-var ENEMY_SPEED = 2 * scaleFactor;
+var ENEMY_SPEED = 125 * scaleFactor;
 s
 function update () {
 
@@ -523,31 +523,18 @@ function updateEnemies() {
     // The enemies have no AI - they just hone in on the player
     thefeds.forEach(function(item) {
 
-        if (player.x < item.x) {
-            item.x -= ENEMY_SPEED;
-            item.scale.x = -1 * scaleFactor; // Flip sprite left
-        } else if (player.x > item.x) {
-            item.x += ENEMY_SPEED;
-            item.scale.x = 1 * scaleFactor; // Unflip sprite
-        }
-        if (player.y < item.y) {
-            item.y -= ENEMY_SPEED;
-        } else if (player.y > item.y) {
-            item.y += ENEMY_SPEED;
-        }
+      // Chase the player around
+      radians = game.physics.arcade.angleBetween(item, player);
+      degrees = radians * (180 / Math.PI);
+      game.physics.arcade.velocityFromAngle(degrees, ENEMY_SPEED, item.body.velocity);
 
-        // Stop enemies from jittering
-        if (Math.abs(player.x - item.x ) < 3) {
-            item.x = player.x
-        }
-        if (Math.abs(player.y - item.y ) < 3) {
-            item.y = player.y
-        }
-
+      // Flip the enemy sprite when it makes sense
+      if (Math.abs(degrees) > 90) {
+        item.scale.x = -scaleFactor;
+      } else {
+        item.scale.x = scaleFactor;
+      }
     }, this);
-
-    // Check for collisions between enemies and bullets
-
 }
 
 function createEnemy() {
