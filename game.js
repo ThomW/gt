@@ -530,6 +530,15 @@ function updateEnemies() {
         } else if (player.y > item.y) {
             item.y += ENEMY_SPEED;
         }
+
+        // Stop enemies from jittering
+        if (Math.abs(player.x - item.x ) < 3) {
+            item.x = player.x
+        }
+        if (Math.abs(player.y - item.y ) < 3) {
+            item.y = player.y
+        }
+
     }, this);
 
     // Check for collisions between enemies and bullets
