@@ -38,7 +38,7 @@ function preload () {
    // Needed to combat content caching
    var imgFolder = 'img/';
 
-   var imgNames = ['title', 'font', 'macguffin1', 'macguffin2', 'macguffin3', 'title-title', 'title-subtitle', 'title-finger'];
+   var imgNames = ['font', 'macguffin1', 'macguffin2', 'macguffin3', 'title-title', 'title-subtitle', 'title-finger'];
    for (var i = 0; i < imgNames.length; i++) {
       game.load.image(imgNames[i], imgFolder + imgNames[i] + '.png');
    }
@@ -163,6 +163,7 @@ function create() {
 
     background = game.add.sprite(0, 0, 'title-bg');
     background.scale.setTo(scaleFactor, scaleFactor);
+    background.alpha = 0;
 
     titleFinger = game.add.sprite(0, 0, 'title-finger');
     titleFinger.scale.setTo(scaleFactor, scaleFactor);
@@ -256,14 +257,16 @@ function create() {
     gameState = GAME_STATE_TITLE;
 
     // Setup the tweens for the title screen
-    tweenFinger = game.add.tween(titleFinger).to( { y: game.height }, 2000, Phaser.Easing.Linear.None);
+    tweenBackground = game.add.tween(background).to( { alpha: 1 }, 500);
+    tweenFinger = game.add.tween(titleFinger).to( { y: game.height }, 1500, Phaser.Easing.Linear.None);
     tweenTitle = game.add.tween(titleTitle).to( { alpha: 1 }, 1000);
     tweenSubtitle = game.add.tween(titleSubtitle).to( { alpha: 1 }, 500);
     
+    tweenBackground.chain(tweenFinger);
     tweenFinger.chain(tweenTitle);
     tweenTitle.chain(tweenSubtitle);
 
-    tweenFinger.start();
+    tweenBackground.start();
 
     tweenSubtitle.onComplete.add(function() {
         game.input.onDown.addOnce(introStart, this);
