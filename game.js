@@ -38,7 +38,7 @@ function preload () {
    // Needed to combat content caching
    var imgFolder = 'img/';
 
-   var imgNames = ['title', 'font', 'macguffin1', 'macguffin2', 'macguffin3', 'title-title', 'title-finger'];
+   var imgNames = ['title', 'font', 'macguffin1', 'macguffin2', 'macguffin3', 'title-title', 'title-subtitle', 'title-finger'];
    for (var i = 0; i < imgNames.length; i++) {
       game.load.image(imgNames[i], imgFolder + imgNames[i] + '.png');
    }
@@ -120,6 +120,7 @@ var nextEnemyTime = null;
 function introStart() {
 
     titleTitle.visible = false;
+    titleSubtitle.visible = false;
     titleFinger.visible = false;
 
     gameState = GAME_STATE_INTRO;
@@ -174,13 +175,14 @@ function create() {
     titleTitle.alpha = 0;
     titleTitle.anchor.setTo(0.5, 1);
     titleTitle.x = game.width * 0.5;
-    titleTitle.y = game.height - 5 * scaleFactor;
+    titleTitle.y = game.height - 15 * scaleFactor;
 
-    tweenFinger = game.add.tween(titleFinger).to( { y: game.height }, 6000, "Quart.easeOut");
-    tweenTitle = game.add.tween(titleTitle).to( { alpha: 1 }, 1000);
-
-    tweenFinger.chain(tweenTitle);
-    tweenFinger.start();
+    titleSubtitle = game.add.sprite(0, 0, 'title-subtitle');
+    titleSubtitle.scale.setTo(scaleFactor, scaleFactor);
+    titleSubtitle.alpha = 0;
+    titleSubtitle.anchor.setTo(0.5, 1);
+    titleSubtitle.x = game.width * 0.5;
+    titleSubtitle.y = game.height - 2 * scaleFactor;
 
     player = game.add.sprite(game.world.centerX, 0, 'player');
     player.scale.setTo(scaleFactor, scaleFactor);
@@ -252,7 +254,20 @@ function create() {
     }
 
     gameState = GAME_STATE_TITLE;
-    game.input.onDown.addOnce(introStart, this);
+
+    // Setup the tweens for the title screen
+    tweenFinger = game.add.tween(titleFinger).to( { y: game.height }, 2000, Phaser.Easing.Linear.None);
+    tweenTitle = game.add.tween(titleTitle).to( { alpha: 1 }, 1000);
+    tweenSubtitle = game.add.tween(titleSubtitle).to( { alpha: 1 }, 500);
+    
+    tweenFinger.chain(tweenTitle);
+    tweenTitle.chain(tweenSubtitle);
+
+    tweenFinger.start();
+
+    tweenSubtitle.onComplete.add(function() {
+        game.input.onDown.addOnce(introStart, this);
+    }, this);
 }
 
 
