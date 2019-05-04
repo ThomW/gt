@@ -38,7 +38,7 @@ function preload () {
    // Needed to combat content caching
    var imgFolder = 'img/';
 
-   var imgNames = ['font', 'macguffin1', 'macguffin2', 'macguffin3', 'title-title', 'title-subtitle', 'title-finger'];
+   var imgNames = ['font', 'macguffin1', 'macguffin2', 'macguffin3', 'title-title', 'title-subtitle', 'title-finger', 'help', 'help-hole', 'help-shooting', 'help-macguffin'];
    for (var i = 0; i < imgNames.length; i++) {
       game.load.image(imgNames[i], imgFolder + imgNames[i] + '.png');
    }
@@ -53,6 +53,7 @@ function preload () {
    game.load.spritesheet('ping', 'img/ping.png', 15, 15, 3);
    game.load.spritesheet('bullet', 'img/bullet.png', 17, 15, 4);
    game.load.spritesheet('thefeds', 'img/thefeds.png', 40, 60, 4);
+   game.load.spritesheet('captured', 'img/player-captured.png', 40, 60, 4);
 
    // game.load.atlasJSONHash('sprites', 'img/sprites.png', 'img/sprites.json');
 
@@ -83,6 +84,7 @@ var GAME_STATE_NECKUP = 5; // This is a special case where the player is in the 
 var GAME_STATE_PLAYER_IN_HOLE = 4;
 var GAME_STATE_END_GAME = 15;
 var GAME_STATE_GAME_OVER = 16;
+var GAME_STATE_PLAYER_CAPTURED = 17;
 
 var HOLE_FLOOR = 322 * scaleFactor;
 
@@ -93,6 +95,8 @@ var titleTitle, titleFinger;
 var player;
 
 var score = 0;
+
+var helpSprite = null;
 
 var scoreText;
 var introText;
@@ -134,22 +138,36 @@ function introStart() {
     
     screen = 1;
     background.loadTexture('bg-01');
+
+    console.log('hi');
+    helpSprite.visible = true;
+}
+
+// I need this function at the start of the game, and everytime the player get captured
+function resetMacguffins() {
+
+  // Hide all the Macguffin captured icons
+  for (var i =0; i < 3; i++) {
+    macguffinImages[i].visible = false;
+  }
+
+  // Randomize the macguffins' locations
+  // Screens 2-5 are the screens with holes
+  while (Object.keys(macguffinLocations).length < 3) {
+    var screenIdx = rnd(2, 5);
+    var holeIdx = rnd(0, blueprints[screenIdx].length - 1);
+    macguffinLocations[getScreenKey(screenIdx)] = holeIdx; // Hack to force array to be associative
+  }
 }
 
 function gameStart() {
 
-    gameState = GAME_STATE_PLAYING;
+  gameState = GAME_STATE_PLAYING;
 
-    // Randomize the macguffins' locations
-    // Screens 2-5 are the screens with holes
-    while (Object.keys(macguffinLocations).length < 3) {
-        var screenIdx = rnd(2, 5);
-        var holeIdx = rnd(0, blueprints[screenIdx].length - 1);
-        macguffinLocations[getScreenKey(screenIdx)] = holeIdx; // Hack to force array to be associative
-    }
+  resetMacguffins();
 
-    score = 9999;
-    updateScore(score);
+  score = 5678;
+  updateScore(score);
 }
 
 
@@ -195,7 +213,10 @@ function create() {
     // Setup some variables I'm glomming onto the player object
     player.isHovering = false;
     player.numCandies = 0;
-    player.hasWeapon = true;
+    player.hasWeapon = false;
+    player.shownHoleTutorial = false;
+    player.shownWeaponTutorial = false;
+    player.shownMacguffinTutorial = false;
 
     player.animations.add('walk', [0, 1, 2], 10, true);
     player.animations.add('neckup', [3, 4, 5, 6], 10, false);
@@ -219,7 +240,6 @@ function create() {
     weapon.addBulletAnimation('bulletRight', [1], 0, false);
     weapon.addBulletAnimation('bulletDown', [0], 0, false);
     weapon.addBulletAnimation('bulletLeft', [3], 0, false);
-
 
     macguffinSpot = game.add.sprite(0, 0, 'ping');
     macguffinSpot.scale.setTo(scaleFactor, scaleFactor);
@@ -246,6 +266,13 @@ function create() {
     scoreImg.anchor.setTo(0.5, 0.5);
     hideScore();
 
+    helpSprite = game.add.sprite(0,0,'help');
+    helpSprite.scale.setTo(scaleFactor, scaleFactor);
+    helpSprite.anchor.setTo(0.5, 1);
+    helpSprite.x = Math.round(game.world.centerX);
+    helpSprite.y = game.world.height - 15 * scaleFactor;
+    helpSprite.visible = false;
+
     // Setup the Macguffin status display
     for (var i = 1; i <= 3; i++) {
         var macguffinImg = game.add.sprite(10 * scaleFactor + 20 * i * scaleFactor, 10 * scaleFactor, 'macguffin' + i);
@@ -271,6 +298,9 @@ function create() {
     tweenSubtitle.onComplete.add(function() {
         game.input.onDown.addOnce(introStart, this);
     }, this);
+
+    // FOR DEBUG
+    game.input.onDown.addOnce(introStart, this);
 }
 
 
@@ -351,6 +381,11 @@ function update () {
             player.animations.play('neckup');
         }
 
+      }
+
+      // Handle screen change
+      if (gameState == GAME_STATE_PLAYING || gameState == GAME_STATE_PLAYER_CAPTURED) {
+
         PLAYER_MIN_X = 10;
         PLAYER_MAX_X = 710;
         PLAYER_MIN_Y = 30;
@@ -391,6 +426,9 @@ function update () {
             }
         }
 
+      }
+      
+      if (gameState == GAME_STATE_PLAYING) {
 
         // Look for collisions with rectangles when the player isn't hovering
         if (!player.isHovering) {
@@ -430,6 +468,13 @@ function update () {
                 // Change to the hole background
                 background.loadTexture('bg-07');
                 gameState = GAME_STATE_PLAYER_IN_HOLE;
+
+                // Show the hole help if it's the player's first time in a hole
+                if (!player.shownHoleTutorial) {
+                  helpSprite.loadTexture('help-hole');
+                  helpSprite.visible = true;
+                  player.shownHoleTutorial = true;
+                }
             }
         }
 
@@ -502,6 +547,17 @@ function update () {
 
             macguffinSprite.visible = false;
 
+            // This is the first time the player has been above ground after getting the weapon
+            if (player.hasWeapon && !player.shownWeaponTutorial) {
+              player.shownWeaponTutorial = true;
+              helpSprite.loadTexture('help-shooting');
+              helpSprite.visible = true;
+            }
+            // Hide the hole sprite sinc it's not needed anymore
+            else {
+              helpSprite.visible = false;
+            }
+
         } else if (player.y > HOLE_FLOOR) { 
 
             // Prevents player from falling through floor of hole
@@ -546,13 +602,68 @@ function update () {
                 player.hasWeapon = true;
             }
         }
-    }
+    } 
+    
+    if (gameState == GAME_STATE_PLAYER_CAPTURED) {
+
+      // Move the player to the feds' home
+      if (screen == 6) {
+
+        // This is the fbi building position
+        var tgt = new Phaser.Rectangle(167 * scaleFactor, 115 * scaleFactor, 10, 10);
+
+        // Handle the movement
+        var radians = game.physics.arcade.angleBetween(player, tgt);
+        degrees = radians * (180 / Math.PI);
+
+        game.physics.arcade.velocityFromAngle(degrees, ENEMY_SPEED, player.body.velocity);
+
+        if (Phaser.Rectangle.intersects(player.body, tgt)) {
+
+          // Steal all the macguffins from the player
+          resetMacguffins();
+
+          // Change the player texture back to the default
+          player.loadTexture('player');
+
+          // This resets the player position, which resets its velocity to undo the effect of the velocityFromAngle above - zeroing velocity broke player capture forever
+          player.reset(player.x, player.y);
+
+          // Return the game state to playing
+          gameState = GAME_STATE_PLAYING;
+          
+          return;
+        }
+
+      } else {
+
+        // Move down until we arrive at screen 6
+        game.physics.arcade.velocityFromAngle(90, ENEMY_SPEED, player.body.velocity);
+      }
+  }
+}
+
+function playerEnemyCollsionHandler(player, enemy) {
+
+    gameState = GAME_STATE_PLAYER_CAPTURED;
+
+    // TODO: Sound
+
+    player.loadTexture('captured');
+
+    // Remove the enemy reponsible for touching the player
+    thefeds.remove(enemy);
+
+    // TODO: Sound
+    // TODO: Death animation
 }
 
 // Enemy timing uses physics timer, which is in fractional seconds
 function updateEnemies() {
 
     game.physics.arcade.overlap(weapon.bullets, thefeds, bulletEnemyCollisionHandler, null, this);
+
+    game.physics.arcade.overlap(player, thefeds, playerEnemyCollsionHandler, null, this);
 
     // Handle enemy updates
     thefeds.nextSpawn -= game.time.physicsElapsed;
@@ -623,6 +734,12 @@ function bulletEnemyCollisionHandler(bullet, enemy) {
 // Direction should be 0=up, 1=right ... clockwise
 function changeScreen(from, direction)
 {
+    // Hide the macguffin indicator
+    macguffinSpot.visible = false;
+
+    // Hide the help text
+    helpSprite.visible = false;
+
     // This emulates the completely screwy map ET had ... so weird.
     map = {
         1: [4, 5, 2, 3], // Screen: [Destination Up, Right, Down, Left]
@@ -659,14 +776,19 @@ function changeScreen(from, direction)
         var rect = blueprints[screen][holeIdx][0];
         macguffinSpot.x = (rect[0] + rect[2] * 0.5) * scaleFactor;
         macguffinSpot.y = (rect[1] + rect[3] * 0.5) * scaleFactor;
+
+        if (!player.shownMacguffinTutorial) {
+          player.shownMacguffinTutorial = true;
+          helpSprite.loadTexture('help-macguffin');
+          helpSprite.visible = true;
+        }
     }
 
     // Kill all the bullets flying around the current screen
     weapon.killAll();
 
-    // Remove all enemies from the screen to respawn later
+    // Hide all the enemies and reset their spawn timer
     thefeds.removeAll();
-
     resetEnemySpawnTimer();
 }
 
