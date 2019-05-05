@@ -33,12 +33,14 @@ $game.style.width = gameWidth * scaleFactor + 'px';
 
 var game = new Phaser.Game(gameWidth * scaleFactor, gameHeight * scaleFactor, Phaser.CANVAS, 'game', { preload: preload, create: create, update: update, render: render });
 
+var soundNames = ['walk', 'enemy_hit', 'laser'];
+
 function preload () {
 
    // Needed to combat content caching
    var imgFolder = 'img/';
 
-   var imgNames = ['font', 'macguffin1', 'macguffin2', 'macguffin3', 'title-title', 'title-subtitle', 'title-finger', 'help', 'help-hole', 'help-shooting', 'help-macguffin'];
+   var imgNames = ['font', 'macguffin1', 'macguffin2', 'macguffin3', 'title-title', 'title-subtitle', 'title-finger', 'help', 'help-hole', 'help-shooting', 'help-macguffin', 'ship', 'ship-lights', 'ship-ramp', 'earth'];
    for (var i = 0; i < imgNames.length; i++) {
       game.load.image(imgNames[i], imgFolder + imgNames[i] + '.png');
    }
@@ -52,8 +54,16 @@ function preload () {
    game.load.spritesheet('player-armed', 'img/player-armed.png', 42, 64, 7);
    game.load.spritesheet('ping', 'img/ping.png', 15, 15, 3);
    game.load.spritesheet('bullet', 'img/bullet.png', 17, 15, 4);
-   game.load.spritesheet('thefeds', 'img/thefeds.png', 40, 60, 4);
+   game.load.spritesheet('thefeds', 'img/thefeds.png', 40, 60);
+   game.load.spritesheet('corpse', 'img/corpse.png', 40, 60);
    game.load.spritesheet('captured', 'img/player-captured.png', 40, 60, 4);
+
+   // Load audio
+   for (var i = 0; i < soundNames.length; i++) {
+    game.load.audio(soundNames[i], 'audio/' + soundNames[i] + '.ogg');
+
+   }
+
 
    // game.load.atlasJSONHash('sprites', 'img/sprites.png', 'img/sprites.json');
 
@@ -85,6 +95,7 @@ var GAME_STATE_PLAYER_IN_HOLE = 4;
 var GAME_STATE_END_GAME = 15;
 var GAME_STATE_GAME_OVER = 16;
 var GAME_STATE_PLAYER_CAPTURED = 17;
+var GAME_STATE_OUTRO = 666;
 
 var HOLE_FLOOR = 322 * scaleFactor;
 
@@ -121,6 +132,8 @@ var lastPosition = [];
 
 var nextEnemyTime = null;
 
+var sounds = {};
+
 function introStart() {
 
     titleTitle.visible = false;
@@ -141,6 +154,142 @@ function introStart() {
 
     console.log('hi');
     helpSprite.visible = true;
+}
+
+function gameover2() {
+
+  background.visible = false;
+
+  earthSprite.visible = true;
+  earthSprite.x = game.world.width * 0.75;
+  earthSprite.y = game.world.height * 0.75;
+
+  shipRampSprite.visible = false;
+
+  shipSprite.bringToTop();
+  shipSprite.scale.setTo(0, 0);
+  shipSprite.visible = true;
+  shipSprite.x = earthSprite.x;
+  shipSprite.y = earthSprite.y;
+  shipSprite.rotation = 5.4;
+
+  tweenScale = game.add.tween(shipSprite.scale).to({ x: 2, y: 2}, 2000);
+  tweenFly = game.add.tween(shipSprite).to({ x: 0, y: 0}, 2000);
+
+  tweenScale.start();
+  tweenFly.start();
+
+  // TODO: Blow up the earth ... lol
+}
+
+// Stops playing all sounds
+function killSounds() {
+
+  for (var key in sounds) {
+    sounds[key].stop();
+  }
+
+}
+
+function gameover() { 
+
+  gameState = GAME_STATE_OUTRO;
+
+  // Kill all sounds
+  killSounds();
+
+  // Dim background
+
+  // Fix the z-order
+  game.world.bringToTop(player);
+  game.world.bringToTop(shipLightsSprite);
+
+  // Init objects needed by ending
+  shipSprite.visible = true;
+  shipRampSprite.height = 0;
+  shipRampSprite.visible = true;
+
+  // Setup all the tweens to land the ship, lower the ramp, load the player, raise the ramp, and take off
+  tweenShipLand = game.add.tween(shipSprite).to({ y: game.height }, 2000);
+  tweenRampDown = game.add.tween(shipRampSprite).to({ height: 122 }, 1000);
+  tweenPlayerInShip = game.add.tween(player).to({ y: 280 * scaleFactor, alpha: 0.5 }, 1000);
+  tweenPlayerFade = game.add.tween(player).to({ alpha: 0 }, 600);
+  tweenRampUp = game.add.tween(shipRampSprite).to({ height: 0 }, 1000);
+  tweenShipLaunch = game.add.tween(shipSprite).to({ y: 0 }, 1000);
+
+  tweenShipLaunch.onComplete.add(function() {
+    gameover2();
+  });
+
+  // Chain all our tweens
+  tweenShipLand.chain(tweenRampDown);
+  tweenRampDown.chain(tweenPlayerInShip);
+  tweenPlayerInShip.chain(tweenPlayerFade);
+  
+  tweenPlayerFade.chain(tweenRampUp);
+  tweenRampUp.chain(tweenShipLaunch);
+
+  /*
+  // FOR DEBUG
+  // Randomly create a new enemy along the edge of the screen
+  for (var i = 0; i < 109; i++ ) {
+
+    var x = game.world.width * (rnd(0,100) * 0.01);
+    var y = game.world.height * (rnd(0,100) * 0.01);
+
+    console.log(x + ',' + y);
+
+    var enemy = thefeds.create(x, y, 'thefeds');
+
+    enemy.x = x;
+    enemy.y = y;
+
+    enemy.anchor.setTo(0.5, 1);
+    enemy.scale.x = scaleFactor;
+    enemy.scale.y = scaleFactor;
+    enemy.animations.add('walk', [0,1], 5, true);
+    enemy.animations.play('walk');
+    enemy.body.setSize(32, 10, 4, 55);
+  }
+  */
+
+  // Enemies stop moving - look toward center
+  thefeds.forEach(function(item) {
+
+    // Stop enemy's movement
+    item.reset();
+
+    // Make sure the enemies are all facing the middle of the screen
+    if (item.x < game.world.centerX) {
+      item.scale.x = scaleFactor;
+    } else { 
+      item.scale.x = -scaleFactor;
+    }
+
+    // Move them all to somewhere in the lower first and third thirds
+    var tween;
+    if (item.x < game.world.centerX) {
+      tween = game.add.tween(item).to({x: rnd(20, game.world.width * 0.33), y: rnd(game.world.height * 0.8, game.world.height)}, 1000).start();
+    } else {
+      tween = game.add.tween(item).to({x: rnd(game.world.width * 0.66, game.world.width), y: rnd(game.world.height * 0.8, game.world.height)}, 1000).start();
+    }
+
+    // Stop their walk animations so they don't look like they're peeing their pants
+    tween.onComplete.add(function() {
+      item.animations.stop(null, true);
+    });
+  
+
+  });
+
+  // Player moves to bottom middle of screen
+  game.add.tween(player).to({ x: game.world.width * 0.5, y: game.world.height}, 1000).start();
+
+  // Start the animation
+  tweenShipLand.start();
+
+  // Scroll background up?
+ 
 }
 
 // I need this function at the start of the game, and everytime the player get captured
@@ -166,12 +315,15 @@ function gameStart() {
 
   resetMacguffins();
 
-  score = 5678;
-  updateScore(score);
 }
 
 
 function create() {
+
+  
+    sounds['walk'] = new Phaser.Sound(game,'walk', 1, true);
+    sounds['enemy_hit'] = new Phaser.Sound(game, 'enemy_hit', 1, false);
+    sounds['laser'] = new Phaser.Sound(game, 'laser', 1, false);
 
     game.physics.startSystem(Phaser.Physics.ARCADE);
     game.physics.setBoundsToWorld();
@@ -217,9 +369,17 @@ function create() {
     player.shownHoleTutorial = false;
     player.shownWeaponTutorial = false;
     player.shownMacguffinTutorial = false;
+    player.deathtoll = 0;
 
-    player.animations.add('walk', [0, 1, 2], 10, true);
-    player.animations.add('neckup', [3, 4, 5, 6], 10, false);
+    var walkAnim = player.animations.add('walk', [0, 1, 2], 10, true);
+    walkAnim.onStart.add(function() {
+      sounds['walk'].play();
+    });
+
+    animations['neckup'] = player.animations.add('neckup', [3, 4, 5, 6], 10, false);
+    animations['neckup'].onStart.add(function() {
+      sounds['walk'].stop();
+    });
 
     // The neckdown animation has a 
     animations['neckdown'] = player.animations.add('neckdown', [6, 5, 4, 3, 0], 10, false);
@@ -230,8 +390,8 @@ function create() {
     weapon.bullets.setAll('scale.x', scaleFactor);
     weapon.bullets.setAll('scale.y', scaleFactor);
     weapon.bulletKillType = Phaser.Weapon.KILL_WORLD_BOUNDS;
-    weapon.bulletSpeed = 600; //  The speed at which the bullet is fired
-    weapon.fireRate = 120; // Delay between bullets in ms
+    weapon.bulletSpeed = 900; //  The speed at which the bullet is fired
+    weapon.fireRate = 150; // Delay between bullets in ms
     weapon.trackSprite(player, 0, -40 * scaleFactor); // Position toward player's head
     weapon.setBulletBodyOffset(4 * scaleFactor, 4 * scaleFactor, 0, 44);
     weapon.setBulletFrames(0, 3, false);
@@ -240,6 +400,9 @@ function create() {
     weapon.addBulletAnimation('bulletRight', [1], 0, false);
     weapon.addBulletAnimation('bulletDown', [0], 0, false);
     weapon.addBulletAnimation('bulletLeft', [3], 0, false);
+    weapon.onFire.add(function() {
+      sounds['laser'].play();
+    })
 
     macguffinSpot = game.add.sprite(0, 0, 'ping');
     macguffinSpot.scale.setTo(scaleFactor, scaleFactor);
@@ -260,6 +423,10 @@ function create() {
     thefeds.enableBody = true;
     thefeds.physicsBodyType = Phaser.Physics.ARCADE;
 
+    corpses = game.add.group();
+    corpses.createMultiple(30, 'corpse');
+    corpses.forEach(setupCorpse, this);
+
     scoreText = game.add.retroFont('font', 15, 7, '0123456789', 10);
     scoreImg = game.add.image(160 * scaleFactor, 175 * scaleFactor, scoreText);
     scoreImg.scale.setTo(scaleFactor, scaleFactor);
@@ -272,6 +439,34 @@ function create() {
     helpSprite.x = Math.round(game.world.centerX);
     helpSprite.y = game.world.height - 15 * scaleFactor;
     helpSprite.visible = false;
+
+    shipSprite = game.add.sprite(0, 0,'ship');
+    shipSprite.scale.setTo(scaleFactor, scaleFactor);
+    shipSprite.anchor.setTo(0.5, 1);
+    shipSprite.x = Math.round(game.world.centerX);
+    shipSprite.y = 0;
+    shipSprite.visible = false;
+
+    shipRampSprite = game.add.sprite(0, 0,'ship-ramp');
+    shipRampSprite.anchor.setTo(0.5, 0);
+    shipRampSprite.x = 0;
+    shipRampSprite.y = -122; // Relative to the parent ship
+    shipSprite.addChild(shipRampSprite);
+
+    shipLightsSprite = game.add.sprite(0, 0,'ship-lights');
+    shipLightsSprite.anchor.setTo(0.5, 1);
+    shipLightsSprite.x = 0;
+    shipLightsSprite.y = 0;
+    shipLightsSprite.alpha = 0.8;
+    game.add.tween(shipLightsSprite).to( { alpha: 1 }, 200, Phaser.Easing.Linear.None, true, 0, 200, true);
+    shipSprite.addChild(shipLightsSprite);
+
+    earthSprite = game.add.sprite(0, 0, 'earth');
+    earthSprite.scale.setTo(scaleFactor, scaleFactor);
+    earthSprite.anchor.setTo(0.5, 0.5);
+    earthSprite.x = game.world.width * 0.75;
+    earthSprite.y = game.world.height * 0.25;
+    earthSprite.visible = false;
 
     // Setup the Macguffin status display
     for (var i = 1; i <= 3; i++) {
@@ -300,7 +495,7 @@ function create() {
     }, this);
 
     // FOR DEBUG
-    game.input.onDown.addOnce(introStart, this);
+    // game.input.onDown.addOnce(introStart, this);
 }
 
 
@@ -339,6 +534,7 @@ function update () {
             if (startingPos != finalPos) {
                 player.animations.play('walk');
             } else {
+                sounds['walk'].stop();
                 player.animations.stop();
                 player.frame = 0; // Plant the player's feet
             }
@@ -445,6 +641,8 @@ function update () {
 
                 // Remove all enemies from the screen to respawn later
                 thefeds.removeAll();
+
+
 
                 // Should this screen have a macguffin piece?
                 if (screenHasMacguffin(screen) 
@@ -596,7 +794,7 @@ function update () {
 
                 // TODO: SHOW CUTSCENE?
 
-                // TODO: CHANGE SPRITE
+                // Change player's sprite
                 player.loadTexture('player-armed');
 
                 player.hasWeapon = true;
@@ -620,9 +818,6 @@ function update () {
 
         if (Phaser.Rectangle.intersects(player.body, tgt)) {
 
-          // Steal all the macguffins from the player
-          resetMacguffins();
-
           // Change the player texture back to the default
           player.loadTexture('player');
 
@@ -643,19 +838,24 @@ function update () {
   }
 }
 
+// This is the code that's called when the player is captured by an enemy
 function playerEnemyCollsionHandler(player, enemy) {
 
     gameState = GAME_STATE_PLAYER_CAPTURED;
 
     // TODO: Sound
 
+    // Reset the player flags when captured
+    player.deathtoll = 0;
+    player.hasWeapon = false;
+
+    // Steal all the macguffins from the player
+    resetMacguffins();
+
     player.loadTexture('captured');
 
-    // Remove the enemy reponsible for touching the player
-    thefeds.remove(enemy);
-
-    // TODO: Sound
-    // TODO: Death animation
+    // Remove the enemy - they're no longer needed
+    enemy.kill();
 }
 
 // Enemy timing uses physics timer, which is in fractional seconds
@@ -689,9 +889,12 @@ function updateEnemies() {
     }, this);
 }
 
-function createEnemy() {
+function setupCorpse(corpse) {
+  corpse.anchor.setTo(0.5, 1);
+  corpse.animations.add('corpse', [0, 0, 0, 1, 2, 3, 4], 5, false);
+}
 
-    // TODO: Randomly create scientists
+function createEnemy() {
 
     // Randomly create a new enemy along the edge of the screen
     if (rnd(0,1)) {
@@ -706,6 +909,9 @@ function createEnemy() {
     enemy.anchor.setTo(0.5, 1);
     enemy.scale.x = scaleFactor;
     enemy.scale.y = scaleFactor;
+
+    enemy.animations.add('walk', [0,1], 5, true);
+    enemy.animations.play('walk');
 
     // Adjust the size of the player's bounding box
     enemy.body.setSize(32, 10, 4, 55);
@@ -727,7 +933,32 @@ function bulletEnemyCollisionHandler(bullet, enemy) {
     // TODO: Sound
     // TODO: Death animation
 
-    enemy.kill();
+    sounds['enemy_hit'].play();
+
+    // Spawn a corpse
+    var corpse = corpses.getFirstExists(false, true);
+    corpse.reset(enemy.x, enemy.y);
+
+    // Match the enemy's scale - mainly for flipping the sprite the correct direction
+    corpse.scale.y = enemy.scale.y;
+    corpse.scale.x = enemy.scale.x;
+
+    // (animation_name, frame_rate, loop, killOnComplete)
+    corpse.play('corpse', 15, false, true);
+
+    // Remove the enemy from the collection and erase all trace of them
+    enemy.destroy();
+
+    // Increment deathtoll when the player is in the forest
+    if (screen == 1) {
+
+      player.deathtoll += 1;
+
+      // Once the player has killed X enemies and reached the forest, play the gameover scene
+      if (player.deathtoll > 20) {
+        gameover();
+      }
+    }
 }
 
 
