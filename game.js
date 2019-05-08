@@ -40,12 +40,12 @@ function preload () {
    // Needed to combat content caching
    var imgFolder = 'img/';
 
-   var imgNames = ['font', 'macguffin1', 'macguffin2', 'macguffin3', 'title-title', 'title-subtitle', 'title-finger', 'help', 'help-hole', 'help-shooting', 'help-macguffin', 'ship', 'ship-lights', 'ship-ramp', 'earth'];
+   var imgNames = ['font', 'macguffin1', 'macguffin2', 'macguffin3', 'title-title', 'title-subtitle', 'title-finger', 'help', 'help-hole', 'help-shooting', 'help-macguffin', 'ship', 'ship-lights', 'ship-ramp', 'earth', 'boom'];
    for (var i = 0; i < imgNames.length; i++) {
       game.load.image(imgNames[i], imgFolder + imgNames[i] + '.png');
    }
 
-   var imgNames = ['bg-01', 'bg-02', 'bg-03', 'bg-04', 'bg-05', 'bg-06', 'bg-07', 'title-bg'];
+   var imgNames = ['bg-01', 'bg-02', 'bg-03', 'bg-04', 'bg-05', 'bg-06', 'bg-07', 'title-bg', 'space'];
    for (var i = 0; i < imgNames.length; i++) {
       game.load.image(imgNames[i], imgFolder + imgNames[i] + '.jpg');
    }
@@ -136,6 +136,10 @@ var sounds = {};
 
 function introStart() {
 
+    // Remove start handlers
+    game.input.keyboard.reset();
+    game.input.onDown.removeAll();
+
     titleTitle.visible = false;
     titleSubtitle.visible = false;
     titleFinger.visible = false;
@@ -158,7 +162,7 @@ function introStart() {
 
 function gameover2() {
 
-  background.visible = false;
+  background.loadTexture('space');
 
   earthSprite.visible = true;
   earthSprite.x = game.world.width * 0.75;
@@ -173,13 +177,52 @@ function gameover2() {
   shipSprite.y = earthSprite.y;
   shipSprite.rotation = 5.4;
 
-  tweenScale = game.add.tween(shipSprite.scale).to({ x: 2, y: 2}, 2000);
-  tweenFly = game.add.tween(shipSprite).to({ x: 0, y: 0}, 2000);
+  var shipSpeed = 6000;
+  tweenScale = game.add.tween(shipSprite.scale).to({ x: 2, y: 2}, shipSpeed);
+  tweenFly = game.add.tween(shipSprite).to({ x: 0, y: 0}, shipSpeed);
 
   tweenScale.start();
   tweenFly.start();
 
   // TODO: Blow up the earth ... lol
+
+  // Fade the earth out over eight seconds
+  var earthFade = game.add.tween(earthSprite).to({alpha: 0}, 9000);
+  earthFade.start();
+
+  for (var i = 0; i < 30; i++) {
+
+    boom = game.add.sprite(earthSprite.x, earthSprite.y, 'boom');
+    boom.scale.setTo(0, 0);
+    boom.alpha = 0;
+    boom.anchor.setTo(0.5, 0.5);
+
+    // This finds a point on a ray shot out from the middle of the earth at angle (a)
+    // with the hypotenuse (h)
+    var a = rnd(0, 359);
+    var h = rnd(0, 70 * scaleFactor);
+    boom.x = earthSprite.x + h * Math.cos(a);
+    boom.y = earthSprite.y + h * Math.sin(a);
+
+    var tgt = rnd(scaleFactor, scaleFactor * 3);
+    var speed = rnd(250, 2000);
+    var boom1 = game.add.tween(boom.scale).to({ x: tgt, y: tgt }, speed);
+    var boom2 = game.add.tween(boom).to({ alpha: 0.9 }, speed);
+    var boom3 = game.add.tween(boom).to({ alpha: 0 }, 50);
+    
+    boom2.chain(boom3);
+
+    var delay = rnd(0, 2000);
+    boom1.delay(delay);
+    boom2.delay(delay);
+
+    var reps = rnd(1, 4);
+    boom1.repeat(reps);
+    boom2.repeat(reps);
+
+    boom1.start();
+    boom2.start();
+  }
 }
 
 // Stops playing all sounds
@@ -311,10 +354,11 @@ function resetMacguffins() {
 
 function gameStart() {
 
-  gameState = GAME_STATE_PLAYING;
-
+  // Reset the location of the hidden objects
   resetMacguffins();
 
+  // Set gamestate to start the update() loop logic
+  gameState = GAME_STATE_PLAYING;
 }
 
 
@@ -492,6 +536,7 @@ function create() {
 
     tweenSubtitle.onComplete.add(function() {
         game.input.onDown.addOnce(introStart, this);
+        game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR).onDown.add(introStart, this);
     }, this);
 
     // FOR DEBUG
@@ -914,7 +959,7 @@ function createEnemy() {
     enemy.animations.play('walk');
 
     // Adjust the size of the player's bounding box
-    enemy.body.setSize(32, 10, 4, 55);
+    enemy.body.setSize(32, 10, 4, 50);
 }
 
 function resetEnemySpawnTimer() {
