@@ -514,7 +514,7 @@ function create() {
 
     // Setup the Macguffin status display
     for (var i = 1; i <= 3; i++) {
-        var macguffinImg = game.add.sprite(10 * scaleFactor + 20 * i * scaleFactor, 10 * scaleFactor, 'macguffin' + i);
+        var macguffinImg = game.add.sprite(10 * scaleFactor + 40 * i * scaleFactor, 10 * scaleFactor, 'macguffin' + i);
         macguffinImg.scale.setTo(scaleFactor, scaleFactor);
         macguffinImg.visible = false;
         macguffinImages.push(macguffinImg);
