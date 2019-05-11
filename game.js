@@ -414,6 +414,7 @@ function create() {
     player.shownWeaponTutorial = false;
     player.shownMacguffinTutorial = false;
     player.deathtoll = 0;
+    player.isInHole = false;
 
     var walkAnim = player.animations.add('walk', [0, 1, 2], 10, true);
     walkAnim.onStart.add(function() {
@@ -687,7 +688,8 @@ function update () {
                 // Remove all enemies from the screen to respawn later
                 thefeds.removeAll();
 
-
+                // Stop walking sound
+                killSounds();
 
                 // Should this screen have a macguffin piece?
                 if (screenHasMacguffin(screen) 
@@ -742,8 +744,12 @@ function update () {
 
     else if (gameState == GAME_STATE_PLAYER_IN_HOLE) {
 
+        player.isInHole = true;
+
         // This sucks, but it does fix the problem we'd have if the player had both A and D held (for instance)
         var startingPos = player.x;
+
+        var playerIsOnGround = false;
 
         if (game.input.keyboard.isDown(Phaser.Keyboard.A)) {
             player.x -= WALKING_SPEED;
@@ -780,6 +786,8 @@ function update () {
         // Player has floated up the screen enough to return to the overworld
         if (player.y < PLAYER_MIN_Y * scaleFactor) {
 
+            player.isInHole = false;
+
             // GTFO of the stupid hole
             gameState = GAME_STATE_PLAYING;
 
@@ -801,18 +809,22 @@ function update () {
               helpSprite.visible = false;
             }
 
-        } else if (player.y > HOLE_FLOOR) { 
+        } else if (player.y >= HOLE_FLOOR) { 
 
             // Prevents player from falling through floor of hole
             player.y = HOLE_FLOOR;
+
+            playerIsOnGround = true;
         }
 
         var finalPos = player.x;
 
-        if (!player.isHovering) {
+        // Only update walking animation when the player is standing on the ground
+        if (!player.isHovering && playerIsOnGround) {
             if (startingPos != finalPos) {
                 player.animations.play('walk');
             } else {
+                sounds['walk'].stop();
                 player.animations.stop();
                 player.frame = 0; // Plant the player's feet
             }
@@ -1166,7 +1178,14 @@ function updateScore(value) {
 
 // Clear flags dealing with the neck animation
 function onNeckdownComplete(sprite, animation) {
-    gameState = GAME_STATE_PLAYING;
+
+    // This is the worst hack in this game. Holy ouch. :P
+    if (player.isInHole) {
+        gameState = GAME_STATE_PLAYER_IN_HOLE;
+    } else {
+        gameState = GAME_STATE_PLAYING;
+    }
+    
     player.isHovering = false;
     macguffinSpot.visible = false;
 }
