@@ -58,29 +58,19 @@ function preload () {
    game.load.spritesheet('corpse', 'img/corpse.png', 40, 60);
    game.load.spritesheet('captured', 'img/player-captured.png', 40, 60, 4);
 
+   this.load.spritesheet('gamepad', 'gamepad/gamepad_spritesheet.png', 100, 100);
+
    // Load audio
    for (var i = 0; i < soundNames.length; i++) {
     game.load.audio(soundNames[i], 'audio/' + soundNames[i] + '.ogg');
 
    }
 
-
-   // game.load.atlasJSONHash('sprites', 'img/sprites.png', 'img/sprites.json');
-
-   // game.load.audio('catch', 'sounds/catch.wav');
-   // game.load.audio('fail', ['sounds/fail.mp3', 'sounds/fail.ogg']);
-
-
    /*
    if (game.device.desktop) {
       game.load.spritesheet('gameover', imgFolder + 'game-over.png', 734, 46);
    } else {
       game.load.spritesheet('gameover', imgFolder + 'game-over-mobile.png', 627, 46);
-   }
-   game.load.spritesheet('explosion', imgFolder + 'explosion.png', 64, 32);
-
-   for (var i = 0; i < soundNames.length; i++) {
-      game.load.audio(soundNames[i], 'audio/' + soundNames[i] + '.mp3');
    }
    */
 }
@@ -133,6 +123,10 @@ var lastPosition = [];
 var nextEnemyTime = null;
 
 var sounds = {};
+
+var movestick = null;
+var fireButtons = [];
+
 
 function introStart() {
 
@@ -240,6 +234,12 @@ function gameover() {
 
   // Kill all sounds
   killSounds();
+
+  // Hide the onscreen controls
+  game.add.tween(movestick).to( { alpha: 0 }, 500, "Linear", true);
+  for (var i = 0; i < 5; i++) {
+    game.add.tween(fireButtons[i]).to( { alpha: 0 }, 500, "Linear", true);
+  }
 
   // Dim background
 
@@ -542,8 +542,60 @@ function create() {
 
     // FOR DEBUG
     // game.input.onDown.addOnce(introStart, this);
+
+    // Device has a touchscreen, so show the on-screen controls
+    if (game.device.touch) {
+
+        // Add the VirtualGamepad plugin to the game
+        gamepad = game.plugins.add(Phaser.Plugin.VirtualGamepad);
+        
+        // Add a joystick to the game (only one is allowed right now)
+        movestick = gamepad.addJoystick(game.width * 0.15, game.height * 0.75, 1.2, 'gamepad');
+
+        // Add fire buttons and create isDown property with handlers
+        var buttonPos = [
+            [game.width * 0.75, game.height * 0.4, false] // x, y, visible
+            , [game.width * 0.85, game.height * 0.55, false]
+            , [game.width * 0.75, game.height * 0.7, false]
+            , [game.width * 0.65, game.height * 0.55, false]
+            , [game.width * 0.85, game.height * 0.1, true] // This is the 'action' button
+        ];
+        for (var i = 0; i < buttonPos.length; i++) {
+            fireButtons[i] = game.add.button(buttonPos[i][0], buttonPos[i][1], 'gamepad', null, this, 0, 0, 1, 0);
+            fireButtons[i].visible = buttonPos[i][2];
+            fireButtons[i].onInputDown.add(onButtonDownHandler, this);
+            fireButtons[i].onInputUp.add(onButtonUpHandler, this);
+            fireButtons[i].isDown = false;
+        }
+
+    } else {
+
+        // Setup fake joystick and buttons so that I don't need to 
+        // create a bunch of branching to keep the game from exploding
+        // if the touchscreen controls aren't initialized
+
+        movestick = {
+            alpha: 0,
+            visible: false,
+            properties: {
+                up: false,
+                right: false,
+                down: false,
+                left: false
+            }
+        }
+
+        for (var i = 0; i < 5; i++) {
+            fireButtons[i] = [];
+            fireButtons[i]['isDown'] = false;
+            fireButtons[i]['visible'] = false;
+            fireButtons[i]['alpha'] = 0;
+        }
+    }
 }
 
+function onButtonDownHandler(obj) { obj.isDown = true; }
+function onButtonUpHandler(obj) { obj.isDown = false; }
 
 var WALKING_SPEED = 3 * scaleFactor;
 var ENEMY_SPEED = 125 * scaleFactor;
@@ -555,22 +607,22 @@ function update () {
         // This sucks, but it does fix the problem we'd have if the player had both A and D held (for instance)
         var startingPos = player.x + ',' + player.y;
 
-        if (game.input.keyboard.isDown(Phaser.Keyboard.A)) {
+        if (game.input.keyboard.isDown(Phaser.Keyboard.A) || movestick.properties.left) {
             player.x -= WALKING_SPEED;
             player.scale.x = -1 * scaleFactor; // Flip sprite left
         } 
-        if (game.input.keyboard.isDown(Phaser.Keyboard.D)) {
+        if (game.input.keyboard.isDown(Phaser.Keyboard.D) || movestick.properties.right) {
             player.x += WALKING_SPEED;
             player.scale.x = scaleFactor; // Flip sprite right
         }
-        if (game.input.keyboard.isDown(Phaser.Keyboard.W)) {
+        if (game.input.keyboard.isDown(Phaser.Keyboard.W) || movestick.properties.up) {
             player.y -= WALKING_SPEED;
         }
-        if (game.input.keyboard.isDown(Phaser.Keyboard.S)) {
+        if (game.input.keyboard.isDown(Phaser.Keyboard.S) || movestick.properties.down) {
             player.y += WALKING_SPEED;
         }
 
-        if (player.isHovering && !game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR)) {
+        if (player.isHovering && !game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR) && !fireButtons[4].isDown) {
             player.animations.play('neckdown');
         }
 
@@ -593,10 +645,10 @@ function update () {
 
             // This craziness is the laziest way I could think of to make sure that only one fire button is hit at a time
             var fireDir = 0;
-            if (game.input.keyboard.isDown(Phaser.Keyboard.I)) { fireDir += FIRE_UP; }
-            if (game.input.keyboard.isDown(Phaser.Keyboard.L)) { fireDir += FIRE_RIGHT; }
-            if (game.input.keyboard.isDown(Phaser.Keyboard.K)) { fireDir += FIRE_DOWN; }
-            if (game.input.keyboard.isDown(Phaser.Keyboard.J)) { fireDir += FIRE_LEFT; }
+            if (game.input.keyboard.isDown(Phaser.Keyboard.I) || fireButtons[0].isDown) { fireDir += FIRE_UP; }
+            if (game.input.keyboard.isDown(Phaser.Keyboard.L) || fireButtons[1].isDown) { fireDir += FIRE_RIGHT; }
+            if (game.input.keyboard.isDown(Phaser.Keyboard.K) || fireButtons[2].isDown) { fireDir += FIRE_DOWN; }
+            if (game.input.keyboard.isDown(Phaser.Keyboard.J) || fireButtons[3].isDown) { fireDir += FIRE_LEFT; }
 
             if (fireDir == FIRE_UP) {
                 weapon.fireAngle = Phaser.ANGLE_UP;
@@ -618,7 +670,7 @@ function update () {
         }
 
         // Player has to be stationary to raise his neck
-        if (!player.isHovering && startingPos == finalPos && game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR)) {
+        if (!player.isHovering && startingPos == finalPos && (game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR) || fireButtons[4].isDown)) {
             gameState = GAME_STATE_NECKUP;
             player.animations.play('neckup');
         }
@@ -729,7 +781,7 @@ function update () {
     else if (gameState == GAME_STATE_NECKUP) {
 
         // The player can't move, and all we're really looking for is the spacebar to be released
-        if (!game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR)) {
+        if (!game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR) && !fireButtons[4].isDown) {
             gameState = GAME_STATE_NECKUP;
             player.animations.play('neckdown');
         }
@@ -751,16 +803,16 @@ function update () {
 
         var playerIsOnGround = false;
 
-        if (game.input.keyboard.isDown(Phaser.Keyboard.A)) {
+        if (game.input.keyboard.isDown(Phaser.Keyboard.A) || movestick.properties.left) {
             player.x -= WALKING_SPEED;
             player.scale.x = -1 * scaleFactor; // Flip sprite left
         } 
-        if (game.input.keyboard.isDown(Phaser.Keyboard.D)) {
+        if (game.input.keyboard.isDown(Phaser.Keyboard.D) || movestick.properties.right) {
             player.x += WALKING_SPEED;
             player.scale.x = scaleFactor; // Flip sprite right
         }
 
-        if (game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR)) {
+        if (game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR) || fireButtons[4].isDown) {
 
             if (player.isHovering == false) {
                 player.animations.play('neckup');
@@ -851,6 +903,13 @@ function update () {
 
                 // TODO: SHOW CUTSCENE?
 
+                // Show the on-screen controls
+                for (var i = 0; i < 4; i++) {
+                    fireButtons[i].alpha = 0;
+                    fireButtons[i].visible = true;
+                    game.add.tween(fireButtons[i]).to( { alpha: 1 }, 1000, "Linear", true);
+                }
+
                 // Change player's sprite
                 player.loadTexture('player-armed');
 
@@ -909,6 +968,11 @@ function playerEnemyCollsionHandler(player, enemy) {
     // Steal all the macguffins from the player
     resetMacguffins();
 
+    // Hide the on-screen directional firebuttons
+    for (var i = 0; i < 4; i++) {
+        game.add.tween(fireButtons[i]).to( { alpha: 0 }, 500, "Linear", true);
+    }
+    
     player.loadTexture('captured');
 
     // Remove the enemy - they're no longer needed
