@@ -21,7 +21,7 @@ if (gameHeight * scaleFactor > window.innerHeight) {
     scaleFactor = window.innerWidth / gameWidth;
 }
 
-scaleFactor = Math.floor(scaleFactor);
+//scaleFactor = Math.floor(scaleFactor);
 
 // Centers the window on the screen
 var $game = window.document.getElementById('game');
@@ -553,11 +553,16 @@ function create() {
         movestick = gamepad.addJoystick(game.width * 0.15, game.height * 0.75, 1.2, 'gamepad');
 
         // Add fire buttons and create isDown property with handlers
+
+        var BUTTON_CENTER_X = game.width - 175;
+        var BUTTON_CENTER_Y = game.height - 175;
+        var BUTTON_DIFF = 66;
+
         var buttonPos = [
-            [game.width * 0.75, game.height * 0.4, false] // x, y, visible
-            , [game.width * 0.85, game.height * 0.55, false]
-            , [game.width * 0.75, game.height * 0.7, false]
-            , [game.width * 0.65, game.height * 0.55, false]
+              [BUTTON_CENTER_X , BUTTON_CENTER_Y - BUTTON_DIFF, false] // x, y, visible
+            , [BUTTON_CENTER_X + BUTTON_DIFF, BUTTON_CENTER_Y, false]
+            , [BUTTON_CENTER_X, BUTTON_CENTER_Y + BUTTON_DIFF, false]
+            , [BUTTON_CENTER_X - BUTTON_DIFF, BUTTON_CENTER_Y, false]
             , [game.width * 0.85, game.height * 0.1, true] // This is the 'action' button
         ];
         for (var i = 0; i < buttonPos.length; i++) {
