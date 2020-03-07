@@ -8,22 +8,114 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black" />
 <meta name="HandheldFriendly" content="true" />
 <meta name="mobile-web-app-capable" content="yes" />
+<link rel="apple-touch-icon" href="./img/apple-touch-icon.png">
+<meta property="og:url" content="https://lmnopc.com/gt/">
+<meta property="og:title" content="G.T. : The Gun-Toting Extra-Terrestrial">
+<meta property="og:image" content="./img/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <style type="text/css">
 body {
     padding: 0px;
     margin: 0px;
     background: #000;
+    font-family: Arial, Helvetica, sans-serif;
 }
 #game {
     position: relative;
-    left: 50%;
+    margin: 0 auto;
 }
+#game canvas {
+    position: relative;
+}
+
+#landscape-warning {
+    display: none;
+    text-align: center;
+    padding: 50px 20px 20px 20px;
+}
+@media only screen and (orientation:portrait) {
+    body { background-color: white; }
+    #landscape-warning { display: block; }
+    #game { display: none; }
+}
+@media only screen and (orientation:landscape) {
+    #landscape-warning { display: none; }
+}
+
 </style>
 <script src="phaser.js" type="text/javascript"></script>
 <script src="phaser-plugin-virtual-gamepad.js"></script>
 </head>
 <body>
-   <div id="game"></div>
+    <div id="landscape-warning">
+        <img src="img/apple-touch-icon.png" />
+        <h1>Your phone must be in landscape orientation to play the game</h1>
+        <img src="img/rotate-phone.png" />
+    </div>
+    <div id="game"></div>
    <script src="game.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+
+function resizeApp() {
+
+    let game_ratio = 720 / 372;
+
+    let window_ratio = window.innerWidth / window.innerHeight;
+
+    let gamebox = document.getElementById('game');
+    let canvas = document.querySelector('#game canvas');
+
+    // Game is 100% width - height is made shorter than window
+    if (window_ratio > game_ratio) {
+
+        gamebox.style.height = window.innerHeight + 'px';
+        gamebox.style.width = '100%';
+
+        // Add bumpers to the left and right sides of the screen
+        if (canvas != null && typeof(canvas) != 'undefined')  {
+            var calcGameWidth = window.innerHeight * game_ratio;
+            var remainder = window.innerWidth - calcGameWidth;
+            var halfRemainder = remainder * 0.5;
+            canvas.style.left = halfRemainder + 'px';
+            canvas.style.top = '0';
+        }
+
+    // 100% HEIGHT - width is shorter than window
+    } else {
+
+        gamebox.style.height = '100%';
+        gamebox.style.width = window.innerWidth + 'px';
+
+        // Add bumpers to the top and bottom of the screen
+        if (canvas != null && typeof(canvas) != 'undefined')  {
+            var calcGameHeight = window.innerWidth / game_ratio;
+            var remainder = window.innerHeight - calcGameHeight;
+            var halfRemainder = remainder * 0.5;
+            canvas.style.top = halfRemainder + 'px';
+            canvas.style.left = '0';
+        }
+
+    }
+}
+
+resizeApp();
+
+// Add to resize event
+window.addEventListener('resize', resizeApp);
+
+
+</script>
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-325788-1"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'UA-325788-1');
+</script>
+
 </body>
 </html>

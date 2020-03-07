@@ -5,33 +5,12 @@ G.T. by ThomW
 Apologies to everyone who plays this
 
 */
-
 var gameWidth = 720;
 var gameHeight = 372;
 
-if (gameWidth < gameHeight) {
-    scaleFactor = window.innerHeight / gameHeight;
-} else {
-    scaleFactor = window.innerWidth / gameWidth;
-}
+scaleFactor = 1;
 
-if (gameHeight * scaleFactor > window.innerHeight) {
-    scaleFactor = window.innerHeight / gameHeight;
-} else if (gameWidth * scaleFactor > window.innerWidth) {
-    scaleFactor = window.innerWidth / gameWidth;
-}
-
-//scaleFactor = Math.floor(scaleFactor);
-
-// Centers the window on the screen
-var $game = window.document.getElementById('game');
-$game.style.marginLeft = '-' + (gameWidth * scaleFactor * 0.5) + 'px';
-$game.style.width = gameWidth * scaleFactor + 'px';
-
-// DEBUG: Override the scale factor code
-// scaleFactor = 1;
-
-var game = new Phaser.Game(gameWidth * scaleFactor, gameHeight * scaleFactor, Phaser.CANVAS, 'game', { preload: preload, create: create, update: update, render: render });
+var game = new Phaser.Game(gameWidth * scaleFactor, gameHeight * scaleFactor, Phaser.AUTO, 'game', { preload: preload, create: create, update: update, render: render });
 
 var soundNames = ['walk', 'enemy_hit', 'laser'];
 
@@ -73,6 +52,8 @@ function preload () {
       game.load.spritesheet('gameover', imgFolder + 'game-over-mobile.png', 627, 46);
    }
    */
+
+   resizeApp();
 }
 
 
@@ -364,6 +345,8 @@ function gameStart() {
 
 function create() {
 
+    // Set scale mode to SHOW_ALL
+    game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
   
     sounds['walk'] = new Phaser.Sound(game,'walk', 1, true);
     sounds['enemy_hit'] = new Phaser.Sound(game, 'enemy_hit', 1, false);
