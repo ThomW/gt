@@ -53,7 +53,7 @@ function preload () {
    }
    */
 
-   resizeApp();
+   // resizeApp();
 }
 
 
@@ -347,6 +347,7 @@ function create() {
 
     // Set scale mode to SHOW_ALL
     game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
+    game.scale.forceOrientation(true);
   
     sounds['walk'] = new Phaser.Sound(game,'walk', 1, true);
     sounds['enemy_hit'] = new Phaser.Sound(game, 'enemy_hit', 1, false);
